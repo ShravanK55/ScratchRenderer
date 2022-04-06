@@ -1,0 +1,7 @@
+Pillow
+Source: https://github.com/python-pillow/Pillow
+Documentation: https://pillow.readthedocs.io/en/stable/
+
+Numpy 
+Source: https://github.com/numpy/numpy
+Documentation: https://numpy.org/doc/
