@@ -4,6 +4,8 @@ import os
 import numpy as np
 from PIL import Image, ImageOps
 import json
+from shadow_renderer import *
+from plane_renderer import *
 
 # Functions
 # Light calculation function
@@ -189,8 +191,34 @@ light_r = ld_from
 for i in range(0, len(light_r)):
     light_n[i] = light_r[i] - ld_to[i]
 
+# Creating light matrix
 light_n = light_n[:-1]
 light_n = light_n / np.linalg.norm(light_n)
+
+light_u = np.cross(light_v, light_n)
+light_u = light_u / np.linalg.norm(light_u)
+light_v = np.cross(light_n, light_u)
+
+light_matrix = [[light_u[0], light_u[1], light_u[2], -np.dot(light_r, light_u)],
+                [light_v[0], light_v[1], light_v[2], -np.dot(light_r, light_v)],
+                [light_n[0], light_n[1], light_n[2], -np.dot(light_r, light_n)],
+                [0, 0, 0, 1]]
+
+# Creating light perspective matrix
+light_near = 3
+light_far = 10
+light_right = 1
+light_left = -1
+light_top = 1
+light_bottom = -1
+
+light_perspective_matrix = [
+    [2 * light_near / (light_right - light_left), 0, (light_right + light_left) / (light_right - light_left), 0],
+    [0, 2 * light_near / (light_top - light_bottom), (light_top + light_bottom) / (light_top - light_bottom), 0],
+    [0, 0, -((light_far + light_near) / (light_far - light_near)),
+     -((2 * light_far * light_near) / (light_far - light_near))],
+    [0, 0, -1, 0]]
+
 
 E = camera_n
 
@@ -261,6 +289,13 @@ with open(geo_file_name) as json_file:
 
 # Setting up z-buffer
 zbuffer = np.matrix(np.ones((xres, yres)) * np.inf)
+shadow_buffer = np.matrix(np.ones((xres, yres)) * np.inf)
+
+# Creating shadow buffer
+createShadowBuffer(triangle_data.get('data'), xres, yres, rotation_matrix, scale_matrix,
+                   translate_matrix,
+                   light_matrix, light_perspective_matrix,
+                   shadow_buffer)
 
 # Getting triangle data
 for triangle in triangle_data.get('data'):
@@ -478,6 +513,17 @@ for triangle in triangle_data.get('data'):
                                   round((cp_ph[1]) * pOutputRGB[1]*Kt),
                                   round((cp_ph[2]) * pOutputRGB[2]*Kt)))
                     zbuffer[x, y] = z
+
+
+# Rendering x-z plane
+renderPlane(im, xres, yres, zbuffer, camera_matrix, perspective_matrix)
+# im4 = renderPlane(im, xres, yres, zbuffer, light_matrix, light_perspective_matrix)
+
+with open("plane.json") as json_file:
+    plane_data = json.load(json_file)
+renderShadow(im, plane_data, xres, yres, camera_matrix, perspective_matrix, light_matrix,
+                   light_perspective_matrix, shadow_buffer, zbuffer)
+
 
 im.show()
 im2.show()
