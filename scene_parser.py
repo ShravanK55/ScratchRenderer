@@ -2,7 +2,7 @@ import math
 import os
 
 import numpy as np
-from PIL import Image
+from PIL import Image, ImageOps
 import json
 
 # Functions
@@ -42,34 +42,33 @@ def light_calc(N):
     if (NdotL < 0 and NdotE >= 0) or (NdotL >= 0 and NdotE < 0):
         diffuse = 0
 
-    color = specular + (Cs * (diffuse + ambient))
+    color = specular + ( (diffuse + ambient))
 
     return color
 
-
 # Defining line equation functions
 def f01(xfun, yfun):
-    return (y0 - y1) * xfun + (x1 - x0) * yfun + x0 * y1 - x1 * y0
+        return (y0 - y1) * xfun + (x1 - x0) * yfun + x0 * y1 - x1 * y0
 
 
 def f12(xfun, yfun):
-    return (y1 - y2) * xfun + (x2 - x1) * yfun + x1 * y2 - x2 * y1
+        return (y1 - y2) * xfun + (x2 - x1) * yfun + x1 * y2 - x2 * y1
 
 
 def f20(xfun, yfun):
-    return (y2 - y0) * xfun + (x0 - x2) * yfun + x2 * y0 - x0 * y2
+        return (y2 - y0) * xfun + (x0 - x2) * yfun + x2 * y0 - x0 * y2
 
-# Save PPM function
+# Save to PPM format function
 def saveToPPM():
     # Saving to PPM  format
-    if os.path.exists("hw4_gouraud.ppm"):
-        os.remove("hw4_gouraud.ppm")
+    if os.path.exists("hw5_gouraud.ppm"):
+        os.remove("hw5_gouraud.ppm")
 
-    if os.path.exists("hw4_phong.ppm"):
-        os.remove("hw4_phong.ppm")
+    if os.path.exists("hw5_phong.ppm"):
+        os.remove("hw5_phong.ppm")
 
-    ppmfile = open("hw4_gouraud.ppm", "a")
-    ppmfile2 = open("hw4_phong.ppm", "a")
+    ppmfile = open("hw5_gouraud.ppm", "a")
+    ppmfile2 = open("hw5_phong.ppm", "a")
 
     ppmfile.write("P3 \n")
     ppmfile2.write("P3 \n")
@@ -102,6 +101,7 @@ def saveToPPM():
 
     print("Saved to PPM format")
 
+
 # Main
 # Reading scene JSON
 with open('scene.json') as json_file:
@@ -124,6 +124,11 @@ im2 = Image.new('RGB', [xres, yres], 0x000000)
 width, height = im.size
 max_RGB = 255
 
+# Opening and saving texture map
+texmap = Image.open("usc1.jpeg")
+texmap = ImageOps.mirror(texmap)
+tex_xres, tex_yres = texmap.size
+
 # Setting up background
 for y in range(height):
     for x in range(width):
@@ -137,6 +142,7 @@ camera_u = [0, 0, 0]
 camera_r = from_array
 for i in range(0, len(camera_r)):
     camera_n[i] = camera_r[i] - to_array[i]
+    #camera_v[i] = to_array[i] - from_array[i]
 
 camera_n = camera_n / np.linalg.norm(camera_n)
 camera_u = np.cross(camera_v, camera_n)
@@ -189,228 +195,290 @@ light_n = light_n / np.linalg.norm(light_n)
 E = camera_n
 
 # Getting shape data
-for x in range(0, len(scene_data.get('scene').get('shapes'))):
-    # Getting material data
-    material_data = scene_data.get('scene').get('shapes')[x].get('material')
-    Cs = material_data.get("Cs")
-    Ka = material_data.get("Ka")
-    Kd = material_data.get("Kd")
-    Ks = material_data.get("Ks")
-    s = material_data.get("n")
+# Getting material datax
+x = 2
+material_data = scene_data.get('scene').get('shapes')[x].get('material')
+Cs = material_data.get("Cs")
+Ka = material_data.get("Ka")
+Kd = material_data.get("Kd")
+Ks = material_data.get("Ks")
+s = material_data.get("n")
 
-    # Getting transform data
-    transform_data = scene_data.get('scene').get('shapes')[x].get('transforms')
-    # Rotation Data
-    if "Ry" in transform_data[0]:
-        theta = transform_data[0].get("Ry") * math.pi / 180
-        rotation_matrix = [[math.cos(theta), 0, math.sin(theta), 0],
-                           [0, 1, 0, 0],
-                           [-math.sin(theta), 0, math.cos(theta), 0],
-                           [0, 0, 0, 1]]
-    if "Rx" in transform_data[0]:
-        theta = transform_data[0].get("Rx")
-        rotation_matrix = [[1, 0, 0, 0],
-                           [0, math.cos(theta), -math.sin(theta), 0],
-                           [0, math.sin(theta), math.cos(theta), 0],
-                           [0, 0, 0, 1]]
-    if "Rz" in transform_data[0]:
-        theta = transform_data[0].get("Rz")
-        rotation_matrix = [[math.cos(theta), -math.sin(theta), 0, 0],
-                           [math.sin(theta), math.cos(theta), 0, 0],
-                           [0, 0, 1, 0],
-                           [0, 0, 0, 1]]
-    # Scale Data
-    scale_array = transform_data[1].get("S")
+#Cs = [1,1,1]
 
-    scale_matrix = [[scale_array[0], 0, 0, 0],
-                    [0, scale_array[1], 0, 0],
-                    [0, 0, scale_array[2], 0],
-                    [0, 0, 0, 1]]
+Ka = 1.0
+Kd = 1.0
+Ks = 1.5
 
-    scale_matrix_inverse = [[1 / scale_array[0], 0, 0, 0],
-                            [0, 1 / scale_array[1], 0, 0],
-                            [0, 0, 1 / scale_array[2], 0],
-                            [0, 0, 0, 1]]
 
-    scale_matrix_inverse_transpose = np.transpose(scale_matrix_inverse)
+# Getting transform data
+transform_data = scene_data.get('scene').get('shapes')[x].get('transforms')
+# Rotation Data
+if "Ry" in transform_data[0]:
+    theta = transform_data[0].get("Ry") * math.pi / 180
+    rotation_matrix = [[math.cos(theta), 0, math.sin(theta), 0],
+                       [0, 1, 0, 0],
+                       [-math.sin(theta), 0, math.cos(theta), 0],
+                       [0, 0, 0, 1]]
+if "Rx" in transform_data[0]:
+    theta = transform_data[0].get("Rx")
+    rotation_matrix = [[1, 0, 0, 0],
+                       [0, math.cos(theta), -math.sin(theta), 0],
+                       [0, math.sin(theta), math.cos(theta), 0],
+                       [0, 0, 0, 1]]
+if "Rz" in transform_data[0]:
+    theta = transform_data[0].get("Rz")
+    rotation_matrix = [[math.cos(theta), -math.sin(theta), 0, 0],
+                       [math.sin(theta), math.cos(theta), 0, 0],
+                       [0, 0, 1, 0],
+                       [0, 0, 0, 1]]
+# Scale Data
+scale_array = transform_data[1].get("S")
 
-    # Translation Data
-    translate_array = transform_data[2].get("T")
-    translate_matrix = [[1, 0, 0, translate_array[0]],
-                        [0, 1, 0, translate_array[1]],
-                        [0, 0, 1, translate_array[2]],
+scale_matrix = [[scale_array[0], 0, 0, 0],
+                [0, scale_array[1], 0, 0],
+                [0, 0, scale_array[2], 0],
+                [0, 0, 0, 1]]
+
+scale_matrix_inverse = [[1 / scale_array[0], 0, 0, 0],
+                        [0, 1 / scale_array[1], 0, 0],
+                        [0, 0, 1 / scale_array[2], 0],
                         [0, 0, 0, 1]]
 
-    # Opening geometry file
-    geo_file_name = scene_data.get('scene').get('shapes')[x].get('geometry') + ".json"
-    with open(geo_file_name) as json_file:
-        triangle_data = json.load(json_file)
+scale_matrix_inverse_transpose = np.transpose(scale_matrix_inverse)
 
-    # Setting up z-buffer
-    zbuffer = np.matrix(np.ones((xres, yres)) * np.inf)
+# Translation Data
+translate_array = transform_data[2].get("T")
+translate_matrix = [[1, 0, 0, translate_array[0]],
+                    [0, 1, 0, translate_array[1]],
+                    [0, 0, 1, translate_array[2]],
+                    [0, 0, 0, 1]]
 
-    # Getting triangle data
-    for triangle in triangle_data.get('data'):
+# Opening geometry file
+geo_file_name = scene_data.get('scene').get('shapes')[x].get('geometry') + ".json"
+with open(geo_file_name) as json_file:
+    triangle_data = json.load(json_file)
 
-        # Getting x,y,z values from each vertex
-        x0 = triangle.get('v0').get('v')[0]
-        y0 = triangle.get('v0').get('v')[1]
-        x1 = triangle.get('v1').get('v')[0]
-        y1 = triangle.get('v1').get('v')[1]
-        x2 = triangle.get('v2').get('v')[0]
-        y2 = triangle.get('v2').get('v')[1]
+# Setting up z-buffer
+zbuffer = np.matrix(np.ones((xres, yres)) * np.inf)
 
-        z0 = triangle.get('v0').get('v')[2]
-        z1 = triangle.get('v1').get('v')[2]
-        z2 = triangle.get('v2').get('v')[2]
+# Getting triangle data
+for triangle in triangle_data.get('data'):
 
-        # Getting normals
-        nx0 = triangle.get('v0').get('n')[0]
-        ny0 = triangle.get('v0').get('n')[1]
-        nz0 = triangle.get('v0').get('n')[2]
-        nx1 = triangle.get('v1').get('n')[0]
-        ny1 = triangle.get('v1').get('n')[1]
-        nz1 = triangle.get('v1').get('n')[2]
-        nx2 = triangle.get('v2').get('n')[0]
-        ny2 = triangle.get('v2').get('n')[1]
-        nz2 = triangle.get('v2').get('n')[2]
+    # Getting x,y,z values from each vertex
+    x0 = triangle.get('v0').get('v')[0]
+    y0 = triangle.get('v0').get('v')[1]
+    x1 = triangle.get('v1').get('v')[0]
+    y1 = triangle.get('v1').get('v')[1]
+    x2 = triangle.get('v2').get('v')[0]
+    y2 = triangle.get('v2').get('v')[1]
 
-        # Setting up arrays
-        v0_array = [[x0], [y0], [z0], [1]]
-        v1_array = [[x1], [y1], [z1], [1]]
-        v2_array = [[x2], [y2], [z2], [1]]
-        n0_array = [[nx0], [ny0], [nz0], [1]]
-        n1_array = [[nx1], [ny1], [nz1], [1]]
-        n2_array = [[nx2], [ny2], [nz2], [1]]
+    z0 = triangle.get('v0').get('v')[2]
+    z1 = triangle.get('v1').get('v')[2]
+    z2 = triangle.get('v2').get('v')[2]
 
-        # Applying transformations 0 -> W
+    # Getting normals
+    nx0 = triangle.get('v0').get('n')[0]
+    ny0 = triangle.get('v0').get('n')[1]
+    nz0 = triangle.get('v0').get('n')[2]
+    nx1 = triangle.get('v1').get('n')[0]
+    ny1 = triangle.get('v1').get('n')[1]
+    nz1 = triangle.get('v1').get('n')[2]
+    nx2 = triangle.get('v2').get('n')[0]
+    ny2 = triangle.get('v2').get('n')[1]
+    nz2 = triangle.get('v2').get('n')[2]
 
-        # Vertex transformations
+    # Getting texture coords
+    u0 = triangle.get('v0').get('t')[0]
+    v0 = triangle.get('v0').get('t')[1]
 
-        v0_array = np.matmul(rotation_matrix, v0_array)
-        v1_array = np.matmul(rotation_matrix, v1_array)
-        v2_array = np.matmul(rotation_matrix, v2_array)
+    u1 = triangle.get('v1').get('t')[0]
+    v1 = triangle.get('v1').get('t')[1]
 
-        v0_array = np.matmul(scale_matrix, v0_array)
-        v1_array = np.matmul(scale_matrix, v1_array)
-        v2_array = np.matmul(scale_matrix, v2_array)
+    u2 = triangle.get('v2').get('t')[0]
+    v2 = triangle.get('v2').get('t')[1]
 
-        v0_array = np.matmul(translate_matrix, v0_array)
-        v1_array = np.matmul(translate_matrix, v1_array)
-        v2_array = np.matmul(translate_matrix, v2_array)
+    # Setting up arrays
+    v0_array = [[x0], [y0], [z0], [1]]
+    v1_array = [[x1], [y1], [z1], [1]]
+    v2_array = [[x2], [y2], [z2], [1]]
+    n0_array = [[nx0], [ny0], [nz0], [1]]
+    n1_array = [[nx1], [ny1], [nz1], [1]]
+    n2_array = [[nx2], [ny2], [nz2], [1]]
 
-        # Normal transformations
+    # Applying transformations 0 -> W
 
-        n0_array = np.matmul(scale_matrix_inverse_transpose, n0_array)
-        n1_array = np.matmul(scale_matrix_inverse_transpose, n1_array)
-        n2_array = np.matmul(scale_matrix_inverse_transpose, n2_array)
+    # Vertex transformations
 
-        n0_array = np.matmul(rotation_matrix, n0_array)
-        n1_array = np.matmul(rotation_matrix, n1_array)
-        n2_array = np.matmul(rotation_matrix, n2_array)
+    v0_array = np.matmul(rotation_matrix, v0_array)
+    v1_array = np.matmul(rotation_matrix, v1_array)
+    v2_array = np.matmul(rotation_matrix, v2_array)
 
-        # W -> C
+    v0_array = np.matmul(scale_matrix, v0_array)
+    v1_array = np.matmul(scale_matrix, v1_array)
+    v2_array = np.matmul(scale_matrix, v2_array)
 
-        v0_array = np.matmul(camera_matrix, v0_array)
-        v1_array = np.matmul(camera_matrix, v1_array)
-        v2_array = np.matmul(camera_matrix, v2_array)
+    v0_array = np.matmul(translate_matrix, v0_array)
+    v1_array = np.matmul(translate_matrix, v1_array)
+    v2_array = np.matmul(translate_matrix, v2_array)
 
-        # C -> NDC
+    # Normal transformations
 
-        v0_array = np.matmul(perspective_matrix, v0_array)
-        v1_array = np.matmul(perspective_matrix, v1_array)
-        v2_array = np.matmul(perspective_matrix, v2_array)
+    n0_array = np.matmul(scale_matrix_inverse_transpose, n0_array)
+    n1_array = np.matmul(scale_matrix_inverse_transpose, n1_array)
+    n2_array = np.matmul(scale_matrix_inverse_transpose, n2_array)
 
-        # Divide by w
-        x0 = v0_array[0] / v0_array[3]
-        y0 = v0_array[1] / v0_array[3]
-        x1 = v1_array[0] / v1_array[3]
-        y1 = v1_array[1] / v1_array[3]
-        x2 = v2_array[0] / v2_array[3]
-        y2 = v2_array[1] / v2_array[3]
+    n0_array = np.matmul(rotation_matrix, n0_array)
+    n1_array = np.matmul(rotation_matrix, n1_array)
+    n2_array = np.matmul(rotation_matrix, n2_array)
 
-        z0 = v0_array[2] / v0_array[3]
-        z1 = v1_array[2] / v1_array[3]
-        z2 = v2_array[2] / v2_array[3]
+    # W -> C
 
-        # Getting normals
-        nx0 = n0_array[0][0]
-        ny0 = n0_array[1][0]
-        nz0 = n0_array[2][0]
-        nx1 = n1_array[0][0]
-        ny1 = n1_array[1][0]
-        nz1 = n1_array[2][0]
-        nx2 = n2_array[0][0]
-        ny2 = n2_array[1][0]
-        nz2 = n2_array[2][0]
+    v0_array = np.matmul(camera_matrix, v0_array)
+    v1_array = np.matmul(camera_matrix, v1_array)
+    v2_array = np.matmul(camera_matrix, v2_array)
 
-        # For Gouraud - calculating c1,c2,c3 - one for each vertex
-        c1 = light_calc(n0_array)
-        c2 = light_calc(n1_array)
-        c3 = light_calc(n2_array)
+    # C -> NDC
 
-        #  NDC -> Raster
-        x0 = ((x0 + 1) * ((xres - 1) / 2))
-        y0 = ((y0 + 1) * ((yres - 1) / 2))
-        x1 = ((x1 + 1) * ((xres - 1) / 2))
-        y1 = ((y1 + 1) * ((yres - 1) / 2))
-        x2 = ((x2 + 1) * ((xres - 1) / 2))
-        y2 = ((y2 + 1) * ((yres - 1) / 2))
+    v0_array = np.matmul(perspective_matrix, v0_array)
+    v1_array = np.matmul(perspective_matrix, v1_array)
+    v2_array = np.matmul(perspective_matrix, v2_array)
+
+    # Divide by w
+    x0 = v0_array[0] / v0_array[3]
+    y0 = v0_array[1] / v0_array[3]
+    x1 = v1_array[0] / v1_array[3]
+    y1 = v1_array[1] / v1_array[3]
+    x2 = v2_array[0] / v2_array[3]
+    y2 = v2_array[1] / v2_array[3]
+
+    z0 = v0_array[2] / v0_array[3]
+    z1 = v1_array[2] / v1_array[3]
+    z2 = v2_array[2] / v2_array[3]
+
+    # Getting normals in world space
+    nx0 = n0_array[0][0]
+    ny0 = n0_array[1][0]
+    nz0 = n0_array[2][0]
+    nx1 = n1_array[0][0]
+    ny1 = n1_array[1][0]
+    nz1 = n1_array[2][0]
+    nx2 = n2_array[0][0]
+    ny2 = n2_array[1][0]
+    nz2 = n2_array[2][0]
+
+    # For Gouraud - calculating c1,c2,c3 - one for each vertex
+    c1 = light_calc(n0_array)
+    c2 = light_calc(n1_array)
+    c3 = light_calc(n2_array)
+
+    #  NDC -> Raster
+    x0 = ((x0 + 1) * ((xres - 1) / 2))
+    y0 = ((y0 + 1) * ((yres - 1) / 2))
+    x1 = ((x1 + 1) * ((xres - 1) / 2))
+    y1 = ((y1 + 1) * ((yres - 1) / 2))
+    x2 = ((x2 + 1) * ((xres - 1) / 2))
+    y2 = ((y2 + 1) * ((yres - 1) / 2))
+
+    # For Perspective correction, dividing by its own z
+    u0 = u0 / z0
+    u1 = u1 / z1
+    u2 = u2 / z2
 
 
-        # z-buffer and scan-converter
+    # z-buffer and scan-converter
 
-        # Setting mins and maxs while checking for bounds
-        xmin = max(math.floor(min(x0, x1, x2)), 0)
-        xmax = min(math.ceil(max(x0, x1, x2)), xres)
-        ymin = max(math.floor(min(y0, y1, y2)), 0)
-        ymax = min(math.ceil(max(y0, y1, y2)), yres)
+    # Setting mins and maxs while checking for bounds
+    xmin = max(math.floor(min(x0, x1, x2)), 0)
+    xmax = min(math.ceil(max(x0, x1, x2)), xres)
+    ymin = max(math.floor(min(y0, y1, y2)), 0)
+    ymax = min(math.ceil(max(y0, y1, y2)), yres)
 
-        if f12(x0, y0) == 0 or f20(x1, y1) == 0 or f01(x2, y2) == 0:
-            continue
+    if f12(x0, y0) == 0 or f20(x1, y1) == 0 or f01(x2, y2) == 0:
+        continue
 
-        for y in range(ymin, ymax):
-            for x in range(xmin, xmax):
-                # Calculating barycentric coordinates
+    for y in range(ymin, ymax):
+        for x in range(xmin, xmax):
+            # Calculating barycentric coordinates
 
-                alpha = f12(x, y) / f12(x0, y0)
-                beta = f20(x, y) / f20(x1, y1)
-                gamma = f01(x, y) / f01(x2, y2)
+            alpha = f12(x, y) / f12(x0, y0)
+            beta = f20(x, y) / f20(x1, y1)
+            gamma = f01(x, y) / f01(x2, y2)
 
-                # Calculating z value
-                z = alpha * z0 + beta * z1 + gamma * z2
+            # Calculating z value
+            z = alpha * z0 + beta * z1 + gamma * z2
 
-                # Filling pixel based on barycentric coordinates
-                if alpha >= 0 and beta >= 0 and gamma >= 0:
+            # Filling pixel based on barycentric coordinates
+            if alpha >= 0 and beta >= 0 and gamma >= 0:
 
-                    # Checking pixel z depth
-                    if z < zbuffer[x, y]:
+                # Barycentric interpolation
+                u = alpha * u0 + beta * u1 + gamma * u2
+                v = alpha * v0 + beta * v1 + gamma * v2
 
-                        #  Shading
-                        cp_g = [0, 0, 0]
-                        pixel_N = [0, 0, 0]
-                        for i in range(0, len(c1)):
-                            # Gouraud Shading - interpolating color
-                            cp_g[i] = ((alpha * c1[i] + beta * c2[i] + gamma * c3[i]).item())
+                # Calculating z at pixel
+                z_at_pixel = 1 / (alpha * (1 / z0) + beta * (1 / z1) + gamma * (1 / z2))
 
-                            if cp_g[i] > 1.0:
-                                cp_g[i] = 1.0
-                            # Phong Shading - interpolating normal
-                            pixel_N[i] = (alpha * n0_array[i] + beta * n1_array[i] + gamma * n2_array[i]).item()
+                # Multiplying u,v by z_at_pixel to get usable u,v
+                u = u * z_at_pixel
+                v = v * z_at_pixel
 
-                        # Phong Shading
-                        cp_ph = light_calc([[pixel_N[0]], [pixel_N[1]], [pixel_N[2]], [1]])
+                # Bilinear interpolation to get texture RGB
+                x_location = min(u * (tex_xres - 1), tex_xres - 2)
+                y_location = min(v * (tex_yres - 1), tex_yres - 2)
+                x_location = max(x_location, 0)
+                y_location = max(y_location, 0)
 
-                        # Gouraud
-                        im.putpixel((x, -y),
-                                    (round(cp_g[0] * max_RGB), round(cp_g[1] * max_RGB),
-                                     round(cp_g[2] * max_RGB)))
-                        # Phong
-                        im2.putpixel((x, -y),
-                                     (round(cp_ph[0] * max_RGB), round(cp_ph[1] * max_RGB),
-                                      round(cp_ph[2] * max_RGB)))
-                        zbuffer[x, y] = z
+                if isinstance(x_location, np.ndarray):
+                    x_location.astype(int)
+                    x_location = x_location[0]
+
+                if isinstance(y_location, np.ndarray):
+                    y_location.astype(int)
+                    y_location = y_location[0]
+
+                f = x_location - np.trunc(x_location)
+                g = y_location - np.trunc(y_location)
+
+                p00RGB = np.array(texmap.getpixel((math.trunc(x_location), math.trunc(y_location))))
+                p11RGB = np.array(texmap.getpixel((math.trunc(x_location) + 1, math.trunc(y_location) + 1)))
+                p10RGB = np.array(texmap.getpixel((math.trunc(x_location) + 1, math.trunc(y_location))))
+                p01RGB = np.array(texmap.getpixel((math.trunc(x_location) + 1, math.trunc(y_location))))
+
+                p0010RGB = f * p10RGB + (1 - f) * p00RGB
+                p0111RGB = f * p11RGB + (1 - f) * p01RGB
+                pOutputRGB = g * p0111RGB + (1 - g) * p0010RGB
+
+                Kt = 0.7
+
+                # Checking pixel z depth
+                if z < zbuffer[x, y]:
+
+                    #  Shading
+                    cp_g = [0, 0, 0]
+                    pixel_N = [0, 0, 0]
+                    for i in range(0, len(c1)):
+                        # Gouraud Shading - interpolating color
+                        cp_g[i] = ((alpha * c1[i] + beta * c2[i] + gamma * c3[i]).item())
+
+                        if cp_g[i] > 1.0:
+                            cp_g[i] = 1.0
+                        # Phong Shading - interpolating normal
+                        pixel_N[i] = (alpha * n0_array[i] + beta * n1_array[i] + gamma * n2_array[i]).item()
+
+                    # Phong Shading
+                    cp_ph = light_calc([[pixel_N[0]], [pixel_N[1]], [pixel_N[2]], [1]])
+
+                    # Gouraud
+                    im.putpixel((x, -y),
+                                (round((cp_g[0]) * pOutputRGB[0]*Kt), round((cp_g[1]) * pOutputRGB[1]*Kt),
+                                 round((cp_g[2]) * pOutputRGB[2]*Kt)))
+                    # Phong
+                    im2.putpixel((x, -y),
+                                 (round((cp_ph[0]) * pOutputRGB[0]*Kt),
+                                  round((cp_ph[1]) * pOutputRGB[1]*Kt),
+                                  round((cp_ph[2]) * pOutputRGB[2]*Kt)))
+                    zbuffer[x, y] = z
 
 im.show()
 im2.show()
-saveToPPM()
+#saveToPPM()
