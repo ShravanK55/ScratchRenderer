@@ -506,11 +506,11 @@ for triangle in triangle_data.get('data'):
                     cp_ph = light_calc([[pixel_N[0]], [pixel_N[1]], [pixel_N[2]], [1]])
 
                     # Gouraud
-                    im.putpixel((x, -y),
+                    im2.putpixel((x, -y),
                                 (round((cp_g[0]) * pOutputRGB[0]*Kt), round((cp_g[1]) * pOutputRGB[1]*Kt),
                                  round((cp_g[2]) * pOutputRGB[2]*Kt)))
                     # Phong
-                    im2.putpixel((x, -y),
+                    im.putpixel((x, -y),
                                  (round((cp_ph[0]) * pOutputRGB[0]*Kt),
                                   round((cp_ph[1]) * pOutputRGB[1]*Kt),
                                   round((cp_ph[2]) * pOutputRGB[2]*Kt)))
@@ -518,17 +518,16 @@ for triangle in triangle_data.get('data'):
 
 
 # Rendering x-z plane
-renderPlane(im, xres, yres, zbuffer, camera_matrix, perspective_matrix)
+renderPlane(im, xres, yres, zbuffer, camera_matrix, perspective_matrix, light_n, la, la_intensity, ld, ld_intensity, E, Ks, Kd, Ka, s)
 # im4 = renderPlane(im, xres, yres, zbuffer, light_matrix, light_perspective_matrix)
 
 with open("plane.json") as json_file:
     plane_data = json.load(json_file)
-renderShadow(im, plane_data, xres, yres, camera_matrix, perspective_matrix, light_matrix,
-                   light_perspective_matrix, shadow_buffer, zbuffer)
+renderShadow(im, plane_data, xres, yres, camera_matrix, perspective_matrix, light_matrix, light_perspective_matrix, shadow_buffer, zbuffer, la, la_intensity, Ka)
 renderToonShade(camera_data, triangle_data, material_data, xres, yres, rotation_matrix, scale_matrix, translate_matrix, scale_matrix_inverse_transpose, camera_matrix, perspective_matrix, light_data)
 renderWireframe(triangle_data, xres, yres, rotation_matrix, scale_matrix, translate_matrix, scale_matrix_inverse_transpose, camera_matrix, perspective_matrix)
 
 
 im.show()
-im2.show()
+#im2.show()
 #saveToPPM()

@@ -5,7 +5,8 @@ import numpy as np
 from PIL import Image
 
 
-def renderPlane(im, xres, yres, zbuffer,camera_matrix, perspective_matrix):
+def renderPlane(im, xres, yres, zbuffer, camera_matrix, perspective_matrix, light_n, la, la_intensity, ld, ld_intensity,
+                E, Ks, Kd, Ka, s):
     with open("plane.json") as json_file:
         triangle_data = json.load(json_file)
 
@@ -15,6 +16,45 @@ def renderPlane(im, xres, yres, zbuffer,camera_matrix, perspective_matrix):
         for x in range(width):
             im.putpixel((x, y), (128, 128, 128))
     '''
+
+    def light_calc(N):
+        L = light_n
+        ambient_light = np.array(list(la)) * la_intensity
+        directional_light = np.array(list(ld)) * ld_intensity
+
+        # Getting and transposing normal
+        N = np.transpose(N[:-1])[0]
+        N = N / np.linalg.norm(N)
+
+        # Calculating N dot L and N dot E
+        NdotL = np.dot(N, L)
+        NdotE = np.dot(N, E)
+
+        if NdotL >= 0 and NdotE >= 0:
+            N = N
+        elif NdotL < 0 and NdotE < 0:
+            N = [-normal for normal in N]
+            N = np.array(N)
+
+        # Calculating and normalizing R
+        R = 2 * np.dot(N, L) * N - L
+        R = R / np.linalg.norm(R)
+
+        # Clamping R dot E
+        RdotE = max(np.dot(R, E), 0)
+        RdotE = min(RdotE, 1)
+
+        # Calculating specular, diffuse, and ambient
+        specular = Ks * directional_light * (RdotE ** s)
+        diffuse = (Kd * directional_light * np.dot(N, L))
+        ambient = (Ka * ambient_light)
+
+        if (NdotL < 0 and NdotE >= 0) or (NdotL >= 0 and NdotE < 0):
+            diffuse = 0
+
+        color = specular + ([112 / 255, 86 / 255, 15 / 255] * (diffuse + ambient))
+
+        return color
 
     for triangle in triangle_data.get('data'):
 
@@ -51,13 +91,12 @@ def renderPlane(im, xres, yres, zbuffer,camera_matrix, perspective_matrix):
 
         # W -> C
 
-       # print(v0_array)
-        #print(v1_array)
-        #print(v2_array)
+        # print(v0_array)
+        # print(v1_array)
+        # print(v2_array)
         v0_array = np.matmul(camera_matrix, v0_array)
         v1_array = np.matmul(camera_matrix, v1_array)
         v2_array = np.matmul(camera_matrix, v2_array)
-
 
         # C -> NDC
 
@@ -100,9 +139,9 @@ def renderPlane(im, xres, yres, zbuffer,camera_matrix, perspective_matrix):
         y1 = ((y1 + 1) * ((yres - 1) / 2))
         x2 = ((x2 + 1) * ((xres - 1) / 2))
         y2 = ((y2 + 1) * ((yres - 1) / 2))
-        #print('light coords in plane renderer')
-        #print(x0, x1, x2)
-        #print(y0, y1, y2)
+        # print('light coords in plane renderer')
+        # print(x0, x1, x2)
+        # print(y0, y1, y2)
         # z-buffer and scan-converter
         # Defining line equation functions
         def f01(xfun, yfun):
@@ -139,9 +178,12 @@ def renderPlane(im, xres, yres, zbuffer,camera_matrix, perspective_matrix):
 
                     # Checking pixel z depth
                     if z < zbuffer[x, y]:
-                        im.putpixel((x, -y),
-                                    (112, 86, 15))
+                        pixel_N = [0, 0, 0]
+                        for i in range(0, len(pixel_N)):
+                            # Phong Shading - interpolating normal
+                            pixel_N[i] = (alpha * n0_array[i] + beta * n1_array[i] + gamma * n2_array[i]).item()
 
-
-
-
+                        # Phong Shading
+                        cp_ph = light_calc([[pixel_N[0]], [pixel_N[1]], [pixel_N[2]], [1]])
+                        # Phong
+                        im.putpixel((x, -y), (round((cp_ph[0]) * 255), round((cp_ph[1]) * 255), round((cp_ph[2]) * 255)))

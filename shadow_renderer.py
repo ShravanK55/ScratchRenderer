@@ -108,7 +108,7 @@ def createShadowBuffer(triangle_data, xres, yres, rotation_matrix, scale_matrix,
 
 
 def renderShadow(im, triangle_data, xres, yres, camera_matrix, perspective_matrix, light_matrix,
-                 light_perspective_matrix, shadow_buffer, zbuffer):
+                 light_perspective_matrix, shadow_buffer, zbuffer, la, la_intensity, Ka):
     for triangle in triangle_data.get('data'):
 
         # Getting x,y,z values from each vertex
@@ -221,9 +221,9 @@ def renderShadow(im, triangle_data, xres, yres, camera_matrix, perspective_matri
                     if z_light[0] > shadow_buffer[x_light, y_light]:
                         # Checking pixel's z-depth
                         if z < zbuffer[x, y]:
-                            rgbPixel = im.getpixel((x, -y))
-                            im.putpixel((x, -y),
-                                        (round(rgbPixel[0] * 0.5), round(rgbPixel[1] * 0.5), round(rgbPixel[2] * 0.5)))
+                            ambient_light = np.array(list(la)) * la_intensity * Ka
+                            rgbPixel = ([112, 86, 15] * ambient_light)
+                            im.putpixel((x, -y),(round(rgbPixel[0]) ,round(rgbPixel[1]) ,round((rgbPixel[2]))))
                             zbuffer[x, y] = z
 
 
