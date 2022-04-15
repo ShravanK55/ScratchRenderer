@@ -7,6 +7,7 @@ import json
 from shadow_renderer import *
 from plane_renderer import *
 from toon_shading import *
+from wireframe_renderer import *
 
 # Functions
 # Light calculation function
@@ -525,6 +526,7 @@ with open("plane.json") as json_file:
 renderShadow(im, plane_data, xres, yres, camera_matrix, perspective_matrix, light_matrix,
                    light_perspective_matrix, shadow_buffer, zbuffer)
 renderToonShade(camera_data, triangle_data, material_data, xres, yres, rotation_matrix, scale_matrix, translate_matrix, scale_matrix_inverse_transpose, camera_matrix, perspective_matrix, light_data)
+renderWireframe(triangle_data, xres, yres, rotation_matrix, scale_matrix, translate_matrix, scale_matrix_inverse_transpose, camera_matrix, perspective_matrix)
 
 
 im.show()
