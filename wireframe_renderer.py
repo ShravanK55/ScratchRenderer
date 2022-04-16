@@ -10,47 +10,47 @@ def draw_line(x1, y1, x2, y2):
 
     steep = False
     # if slope is more than 45, step along y. Swap x and y
-    if abs(x1-x2)<abs(y1-y2) : 
-        x1, y1 = y1, x1 
-        x2, y2 = y2, x2 
-        steep = True 
-    
+    if abs(x1-x2)<abs(y1-y2) :
+        x1, y1 = y1, x1
+        x2, y2 = y2, x2
+        steep = True
+
     #step from smaller x to bigger x
     if x1>x2:
-        x1, x2 = x2, x1 
-        y1, y2 = y2, y1 
+        x1, x2 = x2, x1
+        y1, y2 = y2, y1
 
-    
+
     dx = x2-x1
     dy = y2-y1
-    
+
     derr = abs(2*dy)
     derr2 = 0
-    
+
     x=math.floor(x1)
     y=math.floor(y1)
-    
+
     #Bressenham's Algorithm for Line Rendering
     while x <= math.floor(x2) and x<width-1 and y<height-1:
-        if (steep): 
+        if (steep):
             im.putpixel( (y,-x),black)
         else:
-            im.putpixel( (x,-y),black) 
- 
-        derr2 += derr; 
-        if derr2 > dx : 
+            im.putpixel( (x,-y),black)
+
+        derr2 += derr;
+        if derr2 > dx :
             y += 1 if y2>y1 else -1
             derr2 -= dx*2
         x+=1
 
-def renderGeom(triangle_data, xres, yres, rotation_matrix, scale_matrix, translate_matrix, scale_matrix_inverse_transpose, camera_matrix, perspective_matrix):
+def renderGeom(triangle_data, xres, yres, mvp_matrix, normal_transformation_matrix):
 
     #set background color
     for x in range(width):
         for y in range(height):
             im.putpixel( (x,y),(255, 255, 255))
 
-   # Getting triangle data
+    # Getting triangle data
     for triangle in triangle_data.get('data'):
 
         # Getting x,y,z values from each vertex
@@ -95,43 +95,17 @@ def renderGeom(triangle_data, xres, yres, rotation_matrix, scale_matrix, transla
         n1_array = [[nx1], [ny1], [nz1], [1]]
         n2_array = [[nx2], [ny2], [nz2], [1]]
 
-        # Applying transformations 0 -> W
-
+        # Applying transformations 0 -> NDC
         # Vertex transformations
-
-        v0_array = np.matmul(rotation_matrix, v0_array)
-        v1_array = np.matmul(rotation_matrix, v1_array)
-        v2_array = np.matmul(rotation_matrix, v2_array)
-
-        v0_array = np.matmul(scale_matrix, v0_array)
-        v1_array = np.matmul(scale_matrix, v1_array)
-        v2_array = np.matmul(scale_matrix, v2_array)
-
-        v0_array = np.matmul(translate_matrix, v0_array)
-        v1_array = np.matmul(translate_matrix, v1_array)
-        v2_array = np.matmul(translate_matrix, v2_array)
+        v0_array = np.matmul(mvp_matrix, v0_array)
+        v1_array = np.matmul(mvp_matrix, v1_array)
+        v2_array = np.matmul(mvp_matrix, v2_array)
 
         # Normal transformations
 
-        n0_array = np.matmul(scale_matrix_inverse_transpose, n0_array)
-        n1_array = np.matmul(scale_matrix_inverse_transpose, n1_array)
-        n2_array = np.matmul(scale_matrix_inverse_transpose, n2_array)
-
-        n0_array = np.matmul(rotation_matrix, n0_array)
-        n1_array = np.matmul(rotation_matrix, n1_array)
-        n2_array = np.matmul(rotation_matrix, n2_array)
-
-        # W -> C
-
-        v0_array = np.matmul(camera_matrix, v0_array)
-        v1_array = np.matmul(camera_matrix, v1_array)
-        v2_array = np.matmul(camera_matrix, v2_array)
-
-        # C -> NDC
-
-        v0_array = np.matmul(perspective_matrix, v0_array)
-        v1_array = np.matmul(perspective_matrix, v1_array)
-        v2_array = np.matmul(perspective_matrix, v2_array)
+        n0_array = np.matmul(normal_transformation_matrix, n0_array)
+        n1_array = np.matmul(normal_transformation_matrix, n1_array)
+        n2_array = np.matmul(normal_transformation_matrix, n2_array)
 
         # Divide by w
         x0 = v0_array[0] / v0_array[3]
@@ -171,7 +145,7 @@ def renderGeom(triangle_data, xres, yres, rotation_matrix, scale_matrix, transla
         draw_line(x2, y2, x0, y0)
 
 
-def renderWireframe(triangle_data, xres, yres, rotation_matrix, scale_matrix, translate_matrix, scale_matrix_inverse_transpose, camera_matrix, perspective_matrix):
+def renderWireframe(triangle_data, xres, yres, mvp_matrix, normal_transformation_matrix):
     print("===================\nWireframe Render Begin\n")
 
     global im, width, height, zbuffer, stencilBuffer
@@ -179,7 +153,7 @@ def renderWireframe(triangle_data, xres, yres, rotation_matrix, scale_matrix, tr
     width, height = im.size
     zbuffer = np.matrix(np.ones((xres, yres)) * np.inf)
 
-    renderGeom(triangle_data, xres, yres, rotation_matrix, scale_matrix, translate_matrix, scale_matrix_inverse_transpose, camera_matrix, perspective_matrix) 
+    renderGeom(triangle_data, xres, yres, mvp_matrix, normal_transformation_matrix)
 
     im.show()
     print("Toon Shading Successful\n===================\n")

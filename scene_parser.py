@@ -284,6 +284,52 @@ translate_matrix = [[1, 0, 0, translate_array[0]],
                     [0, 0, 1, translate_array[2]],
                     [0, 0, 0, 1]]
 
+# Concatenated Model-View-Projection (Camera) Matrix
+mvp_matrix = [[1, 0, 0, 0],
+              [0, 1, 0, 0],
+              [0, 0, 1, 0],
+              [0, 0, 0, 1]]
+mvp_matrix = np.matmul(rotation_matrix, mvp_matrix)
+mvp_matrix = np.matmul(scale_matrix, mvp_matrix)
+mvp_matrix = np.matmul(translate_matrix, mvp_matrix)
+mvp_matrix = np.matmul(camera_matrix, mvp_matrix)
+mvp_matrix = np.matmul(perspective_matrix, mvp_matrix)
+
+# Concatenated Model-View-Projection (Light) Matrix
+light_mvp_matrix = [[1, 0, 0, 0],
+                    [0, 1, 0, 0],
+                    [0, 0, 1, 0],
+                    [0, 0, 0, 1]]
+light_mvp_matrix = np.matmul(rotation_matrix, light_mvp_matrix)
+light_mvp_matrix = np.matmul(scale_matrix, light_mvp_matrix)
+light_mvp_matrix = np.matmul(translate_matrix, light_mvp_matrix)
+light_mvp_matrix = np.matmul(light_matrix, light_mvp_matrix)
+light_mvp_matrix = np.matmul(light_perspective_matrix, light_mvp_matrix)
+
+# Concatenated Plane Model-View-Projection (Camera) Matrix
+plane_mvp_matrix  = [[1, 0, 0, 0],
+                     [0, 1, 0, 0],
+                     [0, 0, 1, 0],
+                     [0, 0, 0, 1]]
+plane_mvp_matrix = np.matmul(camera_matrix, plane_mvp_matrix)
+plane_mvp_matrix = np.matmul(perspective_matrix, plane_mvp_matrix)
+
+# Concatenated Plane Model-View-Projection (Light) Matrix
+plane_light_mvp_matrix  = [[1, 0, 0, 0],
+                           [0, 1, 0, 0],
+                           [0, 0, 1, 0],
+                           [0, 0, 0, 1]]
+plane_light_mvp_matrix = np.matmul(light_matrix, plane_light_mvp_matrix)
+plane_light_mvp_matrix = np.matmul(light_perspective_matrix, plane_light_mvp_matrix)
+
+# Concatenated Transformation Matrix For Normals
+normal_transformation_matrix = [[1, 0, 0, 0],
+                                [0, 1, 0, 0],
+                                [0, 0, 1, 0],
+                                [0, 0, 0, 1]]
+normal_transformation_matrix = np.matmul(scale_matrix_inverse_transpose, normal_transformation_matrix)
+normal_transformation_matrix = np.matmul(rotation_matrix, normal_transformation_matrix)
+
 # Opening geometry file
 geo_file_name = scene_data.get('scene').get('shapes')[x].get('geometry') + ".json"
 with open(geo_file_name) as json_file:
@@ -294,10 +340,7 @@ zbuffer = np.matrix(np.ones((xres, yres)) * np.inf)
 shadow_buffer = np.matrix(np.ones((xres, yres)) * np.inf)
 
 # Creating shadow buffer
-createShadowBuffer(triangle_data.get('data'), xres, yres, rotation_matrix, scale_matrix,
-                   translate_matrix,
-                   light_matrix, light_perspective_matrix,
-                   shadow_buffer)
+createShadowBuffer(triangle_data.get('data'), xres, yres, light_mvp_matrix, shadow_buffer)
 
 # Getting triangle data
 for triangle in triangle_data.get('data'):
@@ -343,43 +386,15 @@ for triangle in triangle_data.get('data'):
     n1_array = [[nx1], [ny1], [nz1], [1]]
     n2_array = [[nx2], [ny2], [nz2], [1]]
 
-    # Applying transformations 0 -> W
-
+    # Applying transformations 0 -> NDC
     # Vertex transformations
+    v0_array = np.matmul(mvp_matrix, v0_array)
+    v1_array = np.matmul(mvp_matrix, v1_array)
+    v2_array = np.matmul(mvp_matrix, v2_array)
 
-    v0_array = np.matmul(rotation_matrix, v0_array)
-    v1_array = np.matmul(rotation_matrix, v1_array)
-    v2_array = np.matmul(rotation_matrix, v2_array)
-
-    v0_array = np.matmul(scale_matrix, v0_array)
-    v1_array = np.matmul(scale_matrix, v1_array)
-    v2_array = np.matmul(scale_matrix, v2_array)
-
-    v0_array = np.matmul(translate_matrix, v0_array)
-    v1_array = np.matmul(translate_matrix, v1_array)
-    v2_array = np.matmul(translate_matrix, v2_array)
-
-    # Normal transformations
-
-    n0_array = np.matmul(scale_matrix_inverse_transpose, n0_array)
-    n1_array = np.matmul(scale_matrix_inverse_transpose, n1_array)
-    n2_array = np.matmul(scale_matrix_inverse_transpose, n2_array)
-
-    n0_array = np.matmul(rotation_matrix, n0_array)
-    n1_array = np.matmul(rotation_matrix, n1_array)
-    n2_array = np.matmul(rotation_matrix, n2_array)
-
-    # W -> C
-
-    v0_array = np.matmul(camera_matrix, v0_array)
-    v1_array = np.matmul(camera_matrix, v1_array)
-    v2_array = np.matmul(camera_matrix, v2_array)
-
-    # C -> NDC
-
-    v0_array = np.matmul(perspective_matrix, v0_array)
-    v1_array = np.matmul(perspective_matrix, v1_array)
-    v2_array = np.matmul(perspective_matrix, v2_array)
+    n0_array = np.matmul(normal_transformation_matrix, n0_array)
+    n1_array = np.matmul(normal_transformation_matrix, n1_array)
+    n2_array = np.matmul(normal_transformation_matrix, n2_array)
 
     # Divide by w
     x0 = v0_array[0] / v0_array[3]
@@ -518,14 +533,14 @@ for triangle in triangle_data.get('data'):
 
 
 # Rendering x-z plane
-renderPlane(im, xres, yres, zbuffer, camera_matrix, perspective_matrix, light_n, la, la_intensity, ld, ld_intensity, E, Ks, Kd, Ka, s)
+renderPlane(im, xres, yres, zbuffer, plane_mvp_matrix, light_n, la, la_intensity, ld, ld_intensity, E, Ks, Kd, Ka, s)
 # im4 = renderPlane(im, xres, yres, zbuffer, light_matrix, light_perspective_matrix)
 
 with open("plane.json") as json_file:
     plane_data = json.load(json_file)
-renderShadow(im, plane_data, xres, yres, camera_matrix, perspective_matrix, light_matrix, light_perspective_matrix, shadow_buffer, zbuffer, la, la_intensity, Ka)
-renderToonShade(camera_data, triangle_data, material_data, xres, yres, rotation_matrix, scale_matrix, translate_matrix, scale_matrix_inverse_transpose, camera_matrix, perspective_matrix, light_data)
-renderWireframe(triangle_data, xres, yres, rotation_matrix, scale_matrix, translate_matrix, scale_matrix_inverse_transpose, camera_matrix, perspective_matrix)
+renderShadow(im, plane_data, xres, yres, plane_mvp_matrix, plane_light_mvp_matrix, shadow_buffer, zbuffer, la, la_intensity, Ka)
+renderToonShade(camera_data, triangle_data, material_data, xres, yres, mvp_matrix, normal_transformation_matrix, light_data)
+renderWireframe(triangle_data, xres, yres, mvp_matrix, normal_transformation_matrix)
 
 
 im.show()

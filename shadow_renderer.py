@@ -2,8 +2,7 @@ import math
 import numpy as np
 
 
-def createShadowBuffer(triangle_data, xres, yres, rotation_matrix, scale_matrix, translate_matrix,
-                       light_matrix, light_perspective_matrix, shadow_buffer):
+def createShadowBuffer(triangle_data, xres, yres, light_mvp_matrix, shadow_buffer):
     for triangle in triangle_data:
         # Getting x,y,z values from each vertex
         x0 = triangle.get('v0').get('v')[0]
@@ -25,29 +24,9 @@ def createShadowBuffer(triangle_data, xres, yres, rotation_matrix, scale_matrix,
         # Applying transformations 0 -> W
         # Vertex transformations
 
-        v0_array = np.matmul(rotation_matrix, v0_array)
-        v1_array = np.matmul(rotation_matrix, v1_array)
-        v2_array = np.matmul(rotation_matrix, v2_array)
-
-        v0_array = np.matmul(scale_matrix, v0_array)
-        v1_array = np.matmul(scale_matrix, v1_array)
-        v2_array = np.matmul(scale_matrix, v2_array)
-
-        v0_array = np.matmul(translate_matrix, v0_array)
-        v1_array = np.matmul(translate_matrix, v1_array)
-        v2_array = np.matmul(translate_matrix, v2_array)
-
-        # W -> L
-
-        v0_array = np.matmul(light_matrix, v0_array)
-        v1_array = np.matmul(light_matrix, v1_array)
-        v2_array = np.matmul(light_matrix, v2_array)
-
-        # L -> NDC
-
-        v0_array = np.matmul(light_perspective_matrix, v0_array)
-        v1_array = np.matmul(light_perspective_matrix, v1_array)
-        v2_array = np.matmul(light_perspective_matrix, v2_array)
+        v0_array = np.matmul(light_mvp_matrix, v0_array)
+        v1_array = np.matmul(light_mvp_matrix, v1_array)
+        v2_array = np.matmul(light_mvp_matrix, v2_array)
 
         # Divide by w
         x0 = v0_array[0] / v0_array[3]
@@ -107,8 +86,7 @@ def createShadowBuffer(triangle_data, xres, yres, rotation_matrix, scale_matrix,
                         shadow_buffer[x, y] = z
 
 
-def renderShadow(im, triangle_data, xres, yres, camera_matrix, perspective_matrix, light_matrix,
-                 light_perspective_matrix, shadow_buffer, zbuffer, la, la_intensity, Ka):
+def renderShadow(im, triangle_data, xres, yres, mvp_matrix, light_mvp_matrix, shadow_buffer, zbuffer, la, la_intensity, Ka):
     for triangle in triangle_data.get('data'):
 
         # Getting x,y,z values from each vertex
@@ -128,17 +106,11 @@ def renderShadow(im, triangle_data, xres, yres, camera_matrix, perspective_matri
         v1_array = [[x1], [y1], [z1], [1]]
         v2_array = [[x2], [y2], [z2], [1]]
 
-        # W -> C
+        # W -> NDC
 
-        v0_array = np.matmul(camera_matrix, v0_array)
-        v1_array = np.matmul(camera_matrix, v1_array)
-        v2_array = np.matmul(camera_matrix, v2_array)
-
-        # C -> NDC
-
-        v0_array = np.matmul(perspective_matrix, v0_array)
-        v1_array = np.matmul(perspective_matrix, v1_array)
-        v2_array = np.matmul(perspective_matrix, v2_array)
+        v0_array = np.matmul(mvp_matrix, v0_array)
+        v1_array = np.matmul(mvp_matrix, v1_array)
+        v2_array = np.matmul(mvp_matrix, v2_array)
 
         # Divide by w
         x0 = v0_array[0] / v0_array[3]
@@ -198,12 +170,10 @@ def renderShadow(im, triangle_data, xres, yres, camera_matrix, perspective_matri
                 NDC_y = (y / ((yres - 1) / 2)) - 1
 
                 # NDC -> C -> W
-                camera_proj_view = np.matmul(perspective_matrix, camera_matrix)
-                v = np.matmul(np.linalg.inv(camera_proj_view), [NDC_x, NDC_y, z, 1])
+                v = np.matmul(np.linalg.inv(mvp_matrix), [NDC_x, NDC_y, z, 1])
 
                 # W -> L -> NDC
-                v = np.matmul(light_matrix, v)
-                v = np.matmul(light_perspective_matrix, v)
+                v = np.matmul(light_mvp_matrix, v)
                 x_light = ((v[0] / v[3])[0])
                 y_light = ((v[1] / v[3])[0])
                 z_light = v[2] / v[3]

@@ -5,7 +5,7 @@ import numpy as np
 from PIL import Image
 
 
-def renderPlane(im, xres, yres, zbuffer, camera_matrix, perspective_matrix, light_n, la, la_intensity, ld, ld_intensity,
+def renderPlane(im, xres, yres, zbuffer, mvp_matrix, light_n, la, la_intensity, ld, ld_intensity,
                 E, Ks, Kd, Ka, s):
     with open("plane.json") as json_file:
         triangle_data = json.load(json_file)
@@ -89,20 +89,13 @@ def renderPlane(im, xres, yres, zbuffer, camera_matrix, perspective_matrix, ligh
         n1_array = [[nx1], [ny1], [nz1], [1]]
         n2_array = [[nx2], [ny2], [nz2], [1]]
 
-        # W -> C
-
+        # W -> NDC
         # print(v0_array)
         # print(v1_array)
         # print(v2_array)
-        v0_array = np.matmul(camera_matrix, v0_array)
-        v1_array = np.matmul(camera_matrix, v1_array)
-        v2_array = np.matmul(camera_matrix, v2_array)
-
-        # C -> NDC
-
-        v0_array = np.matmul(perspective_matrix, v0_array)
-        v1_array = np.matmul(perspective_matrix, v1_array)
-        v2_array = np.matmul(perspective_matrix, v2_array)
+        v0_array = np.matmul(mvp_matrix, v0_array)
+        v1_array = np.matmul(mvp_matrix, v1_array)
+        v2_array = np.matmul(mvp_matrix, v2_array)
 
         # Divide by w
         x0 = v0_array[0] / v0_array[3]

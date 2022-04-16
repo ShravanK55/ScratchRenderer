@@ -46,17 +46,17 @@ def toonShading(camera,material, vert1, vert2, vert3, lights, N):
     # Getting and transposing normal
     normal = np.transpose(N[:-1])[0]
     normal = normal / np.linalg.norm(normal)
-        
-    for light in lights: 
+
+    for light in lights:
         light["color"] = [1,1,1]
         if(light["type"] == "ambient"):
             #ambient component
             light["intensity"]=0.2
             for i in range(3):
                 amb[i] = light["color"][i]*material["Ka"]*light["intensity"]
-        elif(light["type"] == "directional"): 
+        elif(light["type"] == "directional"):
 
-            light["intensity"]=0.8 
+            light["intensity"]=0.8
             #creating light vector
             lf = np.array(light["from"])
             lt = np.array(light["to"])
@@ -89,24 +89,24 @@ def toonShading(camera,material, vert1, vert2, vert3, lights, N):
                 diffSum[i] += light["color"][i]*light["intensity"]*NdotL
                 #specular component
                 specSum[i] += light["color"][i]*light["intensity"]*((NdotH*NdotL)**material["n"])
-    
+
     for i in range(3):
         rgb[i] = (col[i]*(amb[i] + (material["Kd"]*diffSum[i]))) + (material["Ks"]*specSum[i]) #+ fresnel
     for i in range(3):
         rgb[i]*=255
-        
+
     return rgb
 
 
 
-def renderGeom(camera, triangle_data, material_data, xres, yres, rotation_matrix, scale_matrix, translate_matrix, scale_matrix_inverse_transpose, camera_matrix, perspective_matrix, light_data):
+def renderGeom(camera, triangle_data, material_data, xres, yres, mvp_matrix, normal_transformation_matrix, light_data):
 
     #set background color
     for x in range(width):
         for y in range(height):
             im.putpixel( (x,y),(255, 255, 255))
 
-   # Getting triangle data
+    # Getting triangle data
     for triangle in triangle_data.get('data'):
 
         # Getting x,y,z values from each vertex
@@ -162,43 +162,17 @@ def renderGeom(camera, triangle_data, material_data, xres, yres, rotation_matrix
         n1_array = [[nx1], [ny1], [nz1], [1]]
         n2_array = [[nx2], [ny2], [nz2], [1]]
 
-        # Applying transformations 0 -> W
-
+        # Applying transformations 0 -> NDC
         # Vertex transformations
-
-        v0_array = np.matmul(rotation_matrix, v0_array)
-        v1_array = np.matmul(rotation_matrix, v1_array)
-        v2_array = np.matmul(rotation_matrix, v2_array)
-
-        v0_array = np.matmul(scale_matrix, v0_array)
-        v1_array = np.matmul(scale_matrix, v1_array)
-        v2_array = np.matmul(scale_matrix, v2_array)
-
-        v0_array = np.matmul(translate_matrix, v0_array)
-        v1_array = np.matmul(translate_matrix, v1_array)
-        v2_array = np.matmul(translate_matrix, v2_array)
+        v0_array = np.matmul(mvp_matrix, v0_array)
+        v1_array = np.matmul(mvp_matrix, v1_array)
+        v2_array = np.matmul(mvp_matrix, v2_array)
 
         # Normal transformations
 
-        n0_array = np.matmul(scale_matrix_inverse_transpose, n0_array)
-        n1_array = np.matmul(scale_matrix_inverse_transpose, n1_array)
-        n2_array = np.matmul(scale_matrix_inverse_transpose, n2_array)
-
-        n0_array = np.matmul(rotation_matrix, n0_array)
-        n1_array = np.matmul(rotation_matrix, n1_array)
-        n2_array = np.matmul(rotation_matrix, n2_array)
-
-        # W -> C
-
-        v0_array = np.matmul(camera_matrix, v0_array)
-        v1_array = np.matmul(camera_matrix, v1_array)
-        v2_array = np.matmul(camera_matrix, v2_array)
-
-        # C -> NDC
-
-        v0_array = np.matmul(perspective_matrix, v0_array)
-        v1_array = np.matmul(perspective_matrix, v1_array)
-        v2_array = np.matmul(perspective_matrix, v2_array)
+        n0_array = np.matmul(normal_transformation_matrix, n0_array)
+        n1_array = np.matmul(normal_transformation_matrix, n1_array)
+        n2_array = np.matmul(normal_transformation_matrix, n2_array)
 
         # Divide by w
         x0 = v0_array[0] / v0_array[3]
@@ -285,7 +259,7 @@ def renderGeom(camera, triangle_data, material_data, xres, yres, rotation_matrix
 
 
 
-def renderToonShade(camera, triangle_data, material_data, xres, yres, rotation_matrix, scale_matrix, translate_matrix, scale_matrix_inverse_transpose, camera_matrix, perspective_matrix, light_data):
+def renderToonShade(camera, triangle_data, material_data, xres, yres, mvp_matrix, normal_transformation_matrix, light_data):
     print("===================\nToon Shading Begin\n")
 
     global im, width, height, zbuffer, stencilBuffer
@@ -299,8 +273,8 @@ def renderToonShade(camera, triangle_data, material_data, xres, yres, rotation_m
     outlineSize=0.05
 
     for i in range(2):
-        renderGeom(camera, triangle_data, material_data, xres, yres, rotation_matrix, scale_matrix, translate_matrix, scale_matrix_inverse_transpose, camera_matrix, perspective_matrix, light_data)
-        outline=True   
+        renderGeom(camera, triangle_data, material_data, xres, yres, mvp_matrix, normal_transformation_matrix, light_data)
+        outline=True
 
     im.show()
     print("Toon Shading Successful\n===================\n")
