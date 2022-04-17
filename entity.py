@@ -125,13 +125,15 @@ class Light:
     Class defining a ambient/directional light source.
     """
 
-    def __init__(self, light_type, color, position=None, direction=None, frustum_bounds=None, resolution=None):
+    def __init__(self, light_type, color, intensity=1.0, position=None, direction=None, frustum_bounds=None,
+                 resolution=None):
         """
         Method to initialize a light source.
 
         Args:
             light_type(str): Type of light source. Can either be "ambient" or "directional".
             color(list): Color of the light.
+            intensity(float): Intensity of the light. Defaults to 1.0.
             position(list): Position of the light source. Defaults to None.
             direction(list): Direction of the light source. Defaults to None.
             frustum_bounds(list): Frustum bounds of the light source. Used for shadow mapping. Defaults to None.
@@ -140,6 +142,7 @@ class Light:
         """
         self.type = light_type
         self.color = color
+        self.intensity = intensity
         self.position = position
         self.direction = direction
-        self.camera = Camera(position, direction, frustum_bounds, resolution)
+        self.camera = None if self.type == "ambient" else Camera(position, direction, frustum_bounds, resolution)

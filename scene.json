@@ -6,6 +6,7 @@
         "notes":"",
         "geometry":"teapot",
         "material":{
+          "texture": "usc1.jpeg",
           "Cs":[
             1,
             0,
@@ -41,6 +42,7 @@
         "notes":"no scaling",
         "geometry":"teapot",
         "material":{
+          "texture": "usc1.jpeg",
           "Cs":[
             0,
             1,
@@ -76,6 +78,7 @@
         "notes":"",
         "geometry":"teapot",
         "material":{
+          "texture": "usc1.jpeg",
           "Cs":[
             0,
             0,
@@ -111,6 +114,7 @@
         "notes":"",
         "geometry":"teapot",
         "material":{
+          "texture": "usc1.jpeg",
           "Cs":[
             1,
             1,
@@ -171,6 +175,18 @@
           0,
           0,
           0
+        ],
+        "bounds":[
+          3,
+          10,
+          1,
+          -1,
+          1,
+          -1
+        ],
+        "resolution":[
+          512,
+          512
         ]
       }
     ],
