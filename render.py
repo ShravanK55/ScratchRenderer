@@ -9,7 +9,7 @@ import math
 import numpy as np
 from PIL import Image
 from shader import fragment_shader
-from utils import triangle_area
+from texture import TextureManager
 
 
 class GeometryBuffer:
@@ -205,6 +205,7 @@ class Renderer:
         self.objects = []
         self.transform_stack = TransformStack()
         self.geometry_buffer = GeometryBuffer((1, 1))
+        self.texture_manager = TextureManager()
 
         if scene_file_path:
             self.load_scene(scene_file_path)

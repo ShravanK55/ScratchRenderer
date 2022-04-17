@@ -50,28 +50,28 @@ def rotation_matrix(rotation):
     rotation_matrix = identity_matrix()
 
     if rotation[0] != 0:
-        angle = rotation[0]
+        angle = rotation[0] * math.pi / 180
         rx_matrix = [[1, 0,               0,                0],
                      [0, math.cos(angle), -math.sin(angle), 0],
                      [0, math.sin(angle), math.cos(angle),  0],
                      [0, 0,               0,                1]]
-        np.matmul(rx_matrix, rotation_matrix)
+        rotation_matrix = np.matmul(rx_matrix, rotation_matrix)
 
     if rotation[1] != 0:
-        angle = rotation[1]
+        angle = rotation[1] * math.pi / 180
         ry_matrix = [[math.cos(angle),  0, math.sin(angle), 0],
                      [0,                1, 0,               0],
                      [-math.sin(angle), 0, math.cos(angle), 0],
                      [0,                0, 0,               1]]
-        np.matmul(ry_matrix, rotation_matrix)
+        rotation_matrix = np.matmul(ry_matrix, rotation_matrix)
 
     if rotation[2] != 0:
-        angle = rotation[2]
+        angle = rotation[2] * math.pi / 180
         rz_matrix = [[math.cos(angle), -math.sin(angle), 0, 0],
                      [math.sin(angle), math.cos(angle),  0, 0],
                      [0,               0,                1, 0],
                      [0,               0,                0, 1]]
-        np.matmul(rz_matrix, rotation_matrix)
+        rotation_matrix = np.matmul(rz_matrix, rotation_matrix)
 
     return rotation_matrix
 
@@ -127,7 +127,7 @@ class Transformation:
             t(list): Translation to apply.
 
         """
-        np.matmul(translation_matrix(t), self.matrix)
+        self.matrix = np.matmul(translation_matrix(t), self.matrix)
 
     def apply_rotation(self, r):
         """
@@ -137,7 +137,7 @@ class Transformation:
             r(list): Rotation to apply.
 
         """
-        np.matmul(rotation_matrix(r), self.matrix)
+        self.matrix = np.matmul(rotation_matrix(r), self.matrix)
 
     def apply_scale(self, s):
         """
@@ -147,7 +147,7 @@ class Transformation:
             s(list): Scale to apply.
 
         """
-        np.matmul(scale_matrix(s), self.matrix)
+        self.matrix = np.matmul(scale_matrix(s), self.matrix)
 
     def get_inverse(self):
         """
@@ -239,7 +239,7 @@ class TransformStack:
             matrix(matrix): Matrix to push to the stack.
 
         """
-        self.stack.append(np.matmul(matrix, self.stack[-1]))
+        self.stack.append(np.matmul(self.top(), matrix))
 
     def pop(self):
         """

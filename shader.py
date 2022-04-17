@@ -21,9 +21,10 @@ def light_calc(obj, camera, lights, n):
         (list): Color of the fragment.
 
     """
-    ambient_color = np.array([0, 0, 0])
-    diffuse_color = np.array([0, 0, 0])
-    specular_color = np.array([0, 0, 0])
+    object_color = np.array(obj.color)
+    ambient_color = np.array([0.0, 0.0, 0.0])
+    diffuse_color = np.array([0.0, 0.0, 0.0])
+    specular_color = np.array([0.0, 0.0, 0.0])
 
     for light in lights:
         light_color = np.array(light.color) * light.intensity
@@ -58,7 +59,7 @@ def light_calc(obj, camera, lights, n):
             diffuse_color += light_color * n_dot_l * -1.0
 
     # Calculating the final color.
-    color = (obj.ka * ambient_color) + (obj.kd * diffuse_color) + (obj.ks * specular_color)
+    color = object_color * ((obj.ka * ambient_color) + (obj.kd * diffuse_color)) + (obj.ks * specular_color)
     return color
 
 
@@ -122,21 +123,13 @@ def fragment_shader(image, z_buffer, obj, camera, lights, pos0, pos1, pos2, n0, 
                 u = u * z_at_pixel
                 v = v * z_at_pixel
 
-                """
-                TODO: Implement texture manager.
-                # Bilinear interpolation to get texture RGB
-                x_location = min(u * (tex_xres - 1), tex_xres - 2)
-                y_location = min(v * (tex_yres - 1), tex_yres - 2)
-                x_location = max(x_location, 0)
-                y_location = max(y_location, 0)
-                """
-
                 # Shading the pixel.
                 if z < z_buffer[x, y]:
+                    MAX_RGB = 255
                     n = alpha * n0 + beta * n1 + gamma * n2
                     color = light_calc(obj, camera, lights, n)
                     image.putpixel((x, -y),
-                                   (round(color[0]),
-                                    round(color[1]),
-                                    round(color[2])))
+                                   (round(color[0] * MAX_RGB),
+                                    round(color[1] * MAX_RGB),
+                                    round(color[2] * MAX_RGB)))
                     z_buffer[x, y] = z
