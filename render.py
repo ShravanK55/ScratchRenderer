@@ -2,13 +2,13 @@
 Module implementing classes and methods related to rendering.
 """
 
+from copy import deepcopy
 from entity import Camera, Light, Object
 from geometry import Transformation, TransformStack
 import json
-import math
 import numpy as np
 from PIL import Image
-from shader import fragment_shader
+from shader import fragment_shader, geometry_pass_shader
 from texture import TextureManager
 
 
@@ -25,10 +25,26 @@ class GeometryBuffer:
             resolution(list): Resolution of the geometry buffer.
 
         """
-        self.position_buffer = [[[0, 0, 0] for _ in range(resolution[1])] for _ in range(resolution[0])]
-        self.color_buffer = [[[0, 0, 0] for _ in range(resolution[1])] for _ in range(resolution[0])]
-        self.normal_buffer = [[[0, 0, 0] for _ in range(resolution[1])] for _ in range(resolution[0])]
-        self.depth_buffer = np.matrix(np.ones((resolution[0], resolution[1])) * np.inf)
+        self.resolution = resolution
+        self.position_buffer = [[[0, 0, 0] for _ in range(self.resolution[1])] for _ in range(self.resolution[0])]
+        self.normal_buffer = [[[0, 0, 0] for _ in range(self.resolution[1])] for _ in range(self.resolution[0])]
+        self.color_buffer = [[[0, 0, 0] for _ in range(self.resolution[1])] for _ in range(self.resolution[0])]
+        self.depth_buffer = np.matrix(np.ones((self.resolution[0], self.resolution[1])) * np.inf)
+
+        # Max depth is used for visualization purposes only.
+        self.max_depth = np.NINF
+
+    def clear(self):
+        """
+        Method to clear the geometry buffer.
+        """
+        self.position_buffer = [[[0, 0, 0] for _ in range(self.resolution[1])] for _ in range(self.resolution[0])]
+        self.normal_buffer = [[[0, 0, 0] for _ in range(self.resolution[1])] for _ in range(self.resolution[0])]
+        self.color_buffer = [[[0, 0, 0] for _ in range(self.resolution[1])] for _ in range(self.resolution[0])]
+        self.depth_buffer = np.matrix(np.ones((self.resolution[0], self.resolution[1])) * np.inf)
+
+        # Max depth is used for visualization purposes only.
+        self.max_depth = np.NINF
 
     def get_attributes(self, x, y):
         """
@@ -39,13 +55,13 @@ class GeometryBuffer:
             y(int): Y position in the geometry buffer.
 
         Returns:
-            (tuple): Tuple containing a position vector, color vector, normal vector and a depth value from the geometry
+            (tuple): Tuple containing a position vector, normal vector, color vector and a depth value from the geometry
                 buffer.
 
         """
-        return (self.get_position(x, y), self.get_color(x, y), self.get_normal(x, y), self.get_depth(x, y))
+        return (self.get_position(x, y), self.get_normal(x, y), self.get_color(x, y), self.get_depth(x, y))
 
-    def set_attributes(self, x, y, position=None, color=None, normal=None, depth=np.inf):
+    def set_attributes(self, x, y, position=None, normal=None, color=None, depth=np.inf):
         """
         Method to set the attributes at a point in the geometry buffer.
 
@@ -63,14 +79,14 @@ class GeometryBuffer:
         """
         success = self.set_depth(x, y, depth)
         if success:
-            if position:
+            if position is not None:
                 self.set_position(x, y, position)
 
-            if color:
-                self.set_color(x, y, color)
-
-            if normal:
+            if normal is not None:
                 self.set_normal(x, y, normal)
+
+            if color is not None:
+                self.set_color(x, y, color)
 
         return success
 
@@ -100,32 +116,6 @@ class GeometryBuffer:
         """
         self.position_buffer[x][y] = position
 
-    def get_color(self, x, y):
-        """
-        Method to get a color on the color buffer.
-
-        Args:
-            x(int): X position in the color buffer.
-            y(int): Y position in the color buffer.
-
-        Returns:
-            (list): Color from the color buffer.
-
-        """
-        return self.color_buffer[x][y]
-
-    def set_color(self, x, y, color):
-        """
-        Method to set a color on the color buffer.
-
-        Args:
-            x(int): X position in the color buffer.
-            y(int): Y position in the color buffer.
-            color(list): Color vector.
-
-        """
-        self.color_buffer[x][y] = color
-
     def get_normal(self, x, y):
         """
         Method to get a normal on the normal buffer.
@@ -152,6 +142,32 @@ class GeometryBuffer:
         """
         self.normal_buffer[x][y] = normal
 
+    def get_color(self, x, y):
+        """
+        Method to get a color on the color buffer.
+
+        Args:
+            x(int): X position in the color buffer.
+            y(int): Y position in the color buffer.
+
+        Returns:
+            (list): Color from the color buffer.
+
+        """
+        return self.color_buffer[x][y]
+
+    def set_color(self, x, y, color):
+        """
+        Method to set a color on the color buffer.
+
+        Args:
+            x(int): X position in the color buffer.
+            y(int): Y position in the color buffer.
+            color(list): Color vector.
+
+        """
+        self.color_buffer[x][y] = color
+
     def get_depth(self, x, y):
         """
         Method to get a depth value on the depth buffer.
@@ -164,7 +180,7 @@ class GeometryBuffer:
             (float): Depth value from the depth buffer.
 
         """
-        return self.depth_buffer[x][y]
+        return self.depth_buffer[x, y]
 
     def set_depth(self, x, y, depth):
         """
@@ -179,8 +195,10 @@ class GeometryBuffer:
             (bool): Whether the depth value was updated in the depth buffer.
 
         """
-        if depth < self.depth_buffer[x][y]:
-            self.depth_buffer[x][y] = depth
+        if depth < self.depth_buffer[x, y]:
+            self.depth_buffer[x, y] = depth
+            if depth > self.max_depth:
+                self.max_depth = depth
             return True
 
         return False
@@ -306,13 +324,13 @@ class Renderer:
             for x in range(self.camera.resolution[0]):
                 image.putpixel((x, y), (128, 128, 128))
 
-        # TODO: Use G-buffer instead.
-        z_buffer = np.matrix(np.ones((self.camera.resolution[0], self.camera.resolution[1])) * np.inf)
+        self.geometry_buffer.clear()
 
         for obj in self.objects:
             # Pushing the object transformation onto the stack and getting the concatenated matrix.
             self.transform_stack.push(obj.transformation.matrix)
             mvp_matrix = self.transform_stack.top()
+            world_matrix = obj.transformation.matrix
             normal_transform_matrix = obj.transformation.get_inverse_transpose()
 
             for triangle in obj.geometry:
@@ -332,6 +350,9 @@ class Renderer:
                 uv2 = np.array(v2.uv)
 
                 # Applying vertex and normal transformations.
+                wpos0 = np.matmul(world_matrix, pos0)
+                wpos1 = np.matmul(world_matrix, pos1)
+                wpos2 = np.matmul(world_matrix, pos2)
                 pos0 = np.matmul(mvp_matrix, pos0)
                 pos1 = np.matmul(mvp_matrix, pos1)
                 pos2 = np.matmul(mvp_matrix, pos2)
@@ -339,10 +360,16 @@ class Renderer:
                 n1 = np.matmul(normal_transform_matrix, n1)
                 n2 = np.matmul(normal_transform_matrix, n2)
 
+                # Conversion to row vectors and normalization.
+                wpos0 = np.transpose(wpos0)[0]
+                wpos1 = np.transpose(wpos1)[0]
+                wpos2 = np.transpose(wpos2)[0]
+                pos0 = np.transpose(pos0)[0]
+                pos1 = np.transpose(pos1)[0]
+                pos2 = np.transpose(pos2)[0]
                 n0 = np.transpose(n0[:-1])[0]
                 n1 = np.transpose(n1[:-1])[0]
                 n2 = np.transpose(n2[:-1])[0]
-
                 n0 = n0 / np.sqrt(np.dot(n0, n0))
                 n1 = n1 / np.sqrt(np.dot(n1, n1))
                 n2 = n2 / np.sqrt(np.dot(n2, n2))
@@ -353,27 +380,82 @@ class Renderer:
                 pos2 = pos2 / pos2[3]
 
                 # Converting vertices to raster space.
-                x0 = ((pos0[0] + 1) * ((self.camera.resolution[0] - 1) / 2))
-                y0 = ((pos0[1] + 1) * ((self.camera.resolution[1] - 1) / 2))
-                z0 = pos0[2]
-                x1 = ((pos1[0] + 1) * ((self.camera.resolution[0] - 1) / 2))
-                y1 = ((pos1[1] + 1) * ((self.camera.resolution[1] - 1) / 2))
-                z1 = pos1[2]
-                x2 = ((pos2[0] + 1) * ((self.camera.resolution[0] - 1) / 2))
-                y2 = ((pos2[1] + 1) * ((self.camera.resolution[1] - 1) / 2))
-                z2 = pos2[2]
+                pos0 = np.array([(pos0[0] + 1) * ((self.camera.resolution[0] - 1) / 2),
+                                (pos0[1] + 1) * ((self.camera.resolution[1] - 1) / 2),
+                                pos0[2]])
+                pos1 = np.array([(pos1[0] + 1) * ((self.camera.resolution[0] - 1) / 2),
+                                (pos1[1] + 1) * ((self.camera.resolution[1] - 1) / 2),
+                                pos1[2]])
+                pos2 = np.array([(pos2[0] + 1) * ((self.camera.resolution[0] - 1) / 2),
+                                (pos2[1] + 1) * ((self.camera.resolution[1] - 1) / 2),
+                                pos2[2]])
 
-                # Passing the transformed geometry to the fragment shader.
-                fragment_shader(image, z_buffer, obj, self.camera, self.lights, (x0, y0, z0), (x1, y1, z1),
-                                (x2, y2, z2), n0, n1, n2, uv0, uv1, uv2)
+                # Passing the geometry to the first pass of the deferred fragment shader.
+                geometry_pass_shader(image, self.geometry_buffer, obj, self.camera, self.lights, pos0, pos1, pos2,
+                                     wpos0, wpos1, wpos2, n0, n1, n2, uv0, uv1, uv2)
 
             # Popping the object transformation off the stack.
             self.transform_stack.pop()
 
         return image
 
+    def render_geometry_buffer(self):
+        """
+        Method to render a visualization of the geometry buffer.
+
+        Returns:
+            (tuple): A tuple of images containing visualizations of the position, normal, color and depth buffers.
+
+        """
+        # Creating images for the buffers.
+        position_image = Image.new("RGB", self.camera.resolution, 0x000000)
+        normal_image = Image.new("RGB", self.camera.resolution, 0x000000)
+        albedo_image = Image.new("RGB", self.camera.resolution, 0x000000)
+        depth_image = Image.new("RGB", self.camera.resolution, 0x000000)
+        MAX_RGB = 255
+        for y in range(self.camera.resolution[1]):
+            for x in range(self.camera.resolution[0]):
+                position_image.putpixel((x, y), (0, 0, 0))
+                normal_image.putpixel((x, y), (0, 0, 0))
+                albedo_image.putpixel((x, y), (0, 0, 0))
+                depth_image.putpixel((x, y), (0, 0, 0))
+
+        for y in range(self.camera.resolution[1]):
+            for x in range(self.camera.resolution[0]):
+                position, normal, color, depth = self.geometry_buffer.get_attributes(x, y)
+
+                if depth != np.inf:
+                    # Adding the position value color.
+                    w_pos = deepcopy(position)
+                    w_pos = w_pos / np.sqrt(np.dot(w_pos, w_pos))
+                    pos_color = (round(w_pos[0] * MAX_RGB), round(w_pos[1] * MAX_RGB), round(w_pos[2] * MAX_RGB))
+                    position_image.putpixel((x, -y), pos_color)
+
+                    # Adding the normal value color.
+                    normal_color = (round(normal[0] * MAX_RGB), round(normal[1] * MAX_RGB), round(normal[2] * MAX_RGB))
+                    normal_image.putpixel((x, -y), normal_color)
+
+                    # Adding the albedo color.
+                    albedo_color = (round(color[0] * MAX_RGB), round(color[1] * MAX_RGB), round(color[2] * MAX_RGB))
+                    albedo_image.putpixel((x, -y), albedo_color)
+
+                    # Adding the depth color.
+                    depth_val = round(depth / self.geometry_buffer.max_depth * MAX_RGB)
+                    depth_color = (depth_val, depth_val, depth_val)
+                    depth_image.putpixel((x, -y), depth_color)
+
+        return (position_image, normal_image, albedo_image, depth_image)
+
 
 if __name__ == "__main__":
     renderer = Renderer("table_scene.json")
     image = renderer.render()
     image.show()
+
+    RENDER_GEOMETRY_BUFFER = True
+    if RENDER_GEOMETRY_BUFFER:
+        position_image, normal_image, albedo_image, depth_image = renderer.render_geometry_buffer()
+        position_image.show()
+        normal_image.show()
+        albedo_image.show()
+        depth_image.show()
