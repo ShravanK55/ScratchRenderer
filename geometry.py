@@ -2,20 +2,32 @@
 Module implementing classes and methods related to geometry.
 """
 
-import json
 import math
 import numpy as np
 
+
+def identity_matrix():
+    """
+    Method that returns an identity matrix.
+
+    Returns:
+        (matrix): Identity matrix.
+
+    """
+    return [[1, 0, 0, 0],
+            [0, 1, 0, 0],
+            [0, 0, 1, 0],
+            [0, 0, 0, 1]]
 
 def translation_matrix(translation):
     """
     Method that returns a translation matrix.
 
     Args:
-        translation(array): Translation vector.
+        translation(list): Translation vector.
 
     Returns:
-        (array): Translation matrix.
+        (matrix): Translation matrix.
 
     """
     return [[1, 0, 0, translation[0]],
@@ -29,16 +41,13 @@ def rotation_matrix(rotation):
     Method that returns a rotation matrix.
 
     Args:
-        rotation(array): Rotation vector.
+        rotation(list): Rotation vector.
 
     Returns:
-        (array): Rotation matrix.
+        (matrix): Rotation matrix.
 
     """
-    rotation_matrix = [[1, 0, 0, 0],
-                       [0, 1, 0, 0],
-                       [0, 0, 1, 0],
-                       [0, 0, 0, 1]]
+    rotation_matrix = identity_matrix()
 
     if rotation[0] != 0:
         angle = rotation[0]
@@ -72,10 +81,10 @@ def scale_matrix(scale):
     Method that returns a scale matrix.
 
     Args:
-        scale(array): Scale vector.
+        scale(list): Scale vector.
 
     Returns:
-        (array): Scale matrix.
+        (matrix): Scale matrix.
 
     """
     return [[scale[0], 0,        0,         0],
@@ -94,15 +103,12 @@ class Transformation:
         Method to initialize the transformation.
 
         Args:
-            translation(array): Translation component of the transformation. Defaults to None.
-            rotation(array): Rotation component of the transformation. Defaults to None.
-            scale(array): Scale component of the transformation. Defaults to None.
+            translation(list): Translation component of the transformation. Defaults to None.
+            rotation(list): Rotation component of the transformation. Defaults to None.
+            scale(list): Scale component of the transformation. Defaults to None.
 
         """
-        self.matrix = [[1, 0, 0, 0],
-                       [0, 1, 0, 0],
-                       [0, 0, 1, 0],
-                       [0, 0, 0, 1]]
+        self.matrix = identity_matrix()
 
         if scale:
             self.apply_scale(scale)
@@ -118,7 +124,7 @@ class Transformation:
         Method to apply additional translation to the transformation.
 
         Args:
-            t(array): Translation to apply.
+            t(list): Translation to apply.
 
         """
         np.matmul(translation_matrix(t), self.matrix)
@@ -128,7 +134,7 @@ class Transformation:
         Method to apply additional rotation to the transformation.
 
         Args:
-            r(array): Rotation to apply.
+            r(list): Rotation to apply.
 
         """
         np.matmul(rotation_matrix(r), self.matrix)
@@ -138,7 +144,7 @@ class Transformation:
         Method to apply additional scale to the transformation.
 
         Args:
-            s(array): Scale to apply.
+            s(list): Scale to apply.
 
         """
         np.matmul(scale_matrix(s), self.matrix)
@@ -148,7 +154,7 @@ class Transformation:
         Method to get the inverse of the transformation matrix.
 
         Returns:
-            (array): Inverse of the transformation matrix.
+            (matrix): Inverse of the transformation matrix.
 
         """
         u = [self.matrix[0][0], self.matrix[1][0], self.matrix[2][0]]
@@ -188,7 +194,7 @@ class Transformation:
         Method to get the transpose of the transformation matrix.
 
         Returns:
-            (array): Transpose of the transformation matrix.
+            (matrix): Transpose of the transformation matrix.
 
         """
         return np.transpose(self.matrix)
@@ -201,7 +207,7 @@ class Transformation:
             include_translation(bool): Whether to include translation in the inverse transpose. Defaults to False.
 
         Returns:
-            (array): Inverse-transpose of the transformation matrix.
+            (matrix): Inverse-transpose of the transformation matrix.
 
         """
         inverse_mat = self.get_inverse()
@@ -214,6 +220,48 @@ class Transformation:
         return np.transpose(inverse_mat)
 
 
+class TransformStack:
+    """
+    Module that implements a transformation matrix stack.
+    """
+
+    def __init__(self):
+        """
+        Method to initialize the transformation matrix stack.
+        """
+        self.stack = [identity_matrix()]
+
+    def push(self, matrix):
+        """
+        Method to push a matrix to the stack.
+
+        Args:
+            matrix(matrix): Matrix to push to the stack.
+
+        """
+        self.stack.append(np.matmul(matrix, self.stack[-1]))
+
+    def pop(self):
+        """
+        Method to pop a matrix from the top of the stack.
+
+        Returns:
+            (matrix): Popped matrix.
+
+        """
+        return self.stack.pop()
+
+    def top(self):
+        """
+        Method to get the matrix at the top of the stack.
+
+        Returns:
+            (matrix): Matrix at the top of the stack.
+
+        """
+        return self.stack[-1]
+
+
 class Vertex:
     """
     Class definining a vertex.
@@ -224,9 +272,9 @@ class Vertex:
         Method to initialize the vertex.
 
         Args:
-            pos(array): Position vector of the vertex.
-            normal(array): Normal vector of the vertex.
-            uv(array): UV vector of the vertex.
+            pos(list): Position vector of the vertex.
+            normal(list): Normal vector of the vertex.
+            uv(list): UV vector of the vertex.
 
         """
         self.pos = pos
@@ -252,38 +300,3 @@ class Triangle:
         self.v0 = v0
         self.v1 = v1
         self.v2 = v2
-
-
-class Object:
-    """
-    Class defining an object.
-    """
-
-    def __init__(self, transformation, geometry=None, geometry_path=None):
-        """
-        Method to initialize an object.
-        """
-        self.transformation = transformation
-        self.geometry = geometry if geometry else []
-
-        if (not geometry) and (geometry_path is not None):
-            self.import_geometry_from_file(geometry_path)
-
-    def import_geometry_from_file(self, file_path):
-        """
-        Method to initialize the geometry of the object from a file.
-
-        Args:
-            file_path(str): Path of the file to import the geometry from.
-
-        """
-        self.geometry = []
-        with open(file_path) as json_file:
-            triangle_data = json.load(json_file)
-
-        for triangle in triangle_data.get('data'):
-            v0 = Vertex(triangle.get('v0').get('v'), triangle.get('v0').get('n'), triangle.get('v0').get('t'))
-            v1 = Vertex(triangle.get('v1').get('v'), triangle.get('v1').get('n'), triangle.get('v1').get('t'))
-            v2 = Vertex(triangle.get('v2').get('v'), triangle.get('v2').get('n'), triangle.get('v2').get('t'))
-            tri = Triangle(v0, v1, v2)
-            self.geometry.append(tri)
