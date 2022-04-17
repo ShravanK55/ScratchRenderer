@@ -12,8 +12,8 @@ class Object:
     Class defining an object.
     """
 
-    def __init__(self, transformation, geometry_path=None, color=None, ka=0.0, kd=0.0, ks=0.0,
-                 specularity=0.0, texture_path=None):
+    def __init__(self, transformation, geometry_path=None, color=None, ka=0.0, kd=0.0, ks=0.0, kt=0.0,
+                 specularity=0.0, texture=None):
         """
         Method to initialize an object.
 
@@ -24,8 +24,9 @@ class Object:
             ka(float): Ambient co-efficient. Defaults to 0.0.
             kd(float): Diffuse co-efficient. Defauls to 0.0.
             ks(float): Specular co-efficient. Defaults to 0.0.
+            kt(float): Texture co-efficient. Defaults to 0.0.
             specularity(float): Specularity of the object. Defaults to 0.0.
-            texture_path(str): Path for the texture to use for the object. Defaults to None.
+            texture(Image): Texture to use for the object. Defaults to None.
 
         """
         self.transformation = transformation
@@ -34,8 +35,9 @@ class Object:
         self.ka = ka
         self.kd = kd
         self.ks = ks
+        self.kt = kt
         self.specularity = specularity
-        self.texture_path = texture_path
+        self.texture = texture
 
         if geometry_path:
             self.import_geometry_from_file(geometry_path)

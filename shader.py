@@ -4,10 +4,11 @@ Module implementing shader functions.
 
 import math
 import numpy as np
+from texture import get_texture_color
 from utils import triangle_area
 
 
-def light_calc(obj, camera, lights, n):
+def light_calc(obj, camera, lights, n, uv=None):
     """
     Method to calculate the color of a fragment from lighting.
 
@@ -16,11 +17,13 @@ def light_calc(obj, camera, lights, n):
         camera(Camera): Camera that is viewing the object.
         lights(list): List of lights in the scene.
         n(list): Normal vector of the fragment being shaded.
+        uv(list): UV co-ordinates for texture mapping. Defaults to None.
 
     Returns:
         (list): Color of the fragment.
 
     """
+    MAX_RGB = 255
     object_color = np.array(obj.color)
     ambient_color = np.array([0.0, 0.0, 0.0])
     diffuse_color = np.array([0.0, 0.0, 0.0])
@@ -35,14 +38,13 @@ def light_calc(obj, camera, lights, n):
 
         # Getting the light, normal, eye direction and reflected light vectors.
         l = light.direction
-        nt = np.transpose(n[:-1])[0]
         e = camera.direction
-        r = 2 * np.dot(nt, l) * nt - l
+        r = 2 * np.dot(n, l) * n - l
         r = r / np.sqrt(np.dot(r, r))
 
         # Calculating the N dot L, N dot E and R dot E products.
-        n_dot_l = np.dot(nt, l)
-        n_dot_e = np.dot(nt, e)
+        n_dot_l = np.dot(n, l)
+        n_dot_e = np.dot(n, e)
         r_dot_e = np.dot(r, e)
 
         # Clamping the value of R dot E between 0 and 1.
@@ -59,8 +61,16 @@ def light_calc(obj, camera, lights, n):
             diffuse_color += light_color * n_dot_l * -1.0
 
     # Calculating the final color.
-    color = object_color * ((obj.ka * ambient_color) + (obj.kd * diffuse_color)) + (obj.ks * specular_color)
-    return color
+    color = [0, 0, 0]
+    if (uv is not None) and obj.texture:
+        object_color = get_texture_color(obj.texture, uv) * MAX_RGB * obj.kt
+        color = object_color * ((obj.ka * ambient_color) + (obj.kd * diffuse_color) + (obj.ks * specular_color))
+        color = [round(color[0]), round(color[1]), round(color[2])]
+    else:
+        color = object_color * ((obj.ka * ambient_color) + (obj.kd * diffuse_color)) + (obj.ks * specular_color)
+        color = [round(color[0] * MAX_RGB), round(color[1] * MAX_RGB), round(color[2] * MAX_RGB)]
+
+    return tuple(color)
 
 
 def fragment_shader(image, z_buffer, obj, camera, lights, pos0, pos1, pos2, n0, n1, n2, uv0, uv1, uv2):
@@ -90,9 +100,9 @@ def fragment_shader(image, z_buffer, obj, camera, lights, pos0, pos1, pos2, n0, 
     x2, y2, z2 = pos2
 
     # Dividing UVs by their Z values for perspective correction.
-    uv0 = uv0 / pos0[2]
-    uv1 = uv1 / pos1[2]
-    uv2 = uv2 / pos2[2]
+    p_uv0 = uv0 / pos0[2]
+    p_uv1 = uv1 / pos1[2]
+    p_uv2 = uv2 / pos2[2]
 
     # Getting the bounding box of the triangle.
     xmin = max(math.floor(min(x0, x1, x2)), 0)
@@ -117,19 +127,13 @@ def fragment_shader(image, z_buffer, obj, camera, lights, pos0, pos1, pos2, n0, 
 
             if alpha >= 0 and beta >= 0 and gamma >= 0:
                 # Perspective correcting the UVs.
-                u = alpha * uv0[0] + beta * uv1[0] + gamma * uv2[0]
-                v = alpha * uv0[1] + beta * uv1[1] + gamma * uv2[1]
+                uv = alpha * p_uv0 + beta * p_uv1 + gamma * p_uv2
                 z_at_pixel = 1 / (alpha * (1 / z0) + beta * (1 / z1) + gamma * (1 / z2))
-                u = u * z_at_pixel
-                v = v * z_at_pixel
+                uv = uv * z_at_pixel
 
                 # Shading the pixel.
                 if z < z_buffer[x, y]:
-                    MAX_RGB = 255
                     n = alpha * n0 + beta * n1 + gamma * n2
-                    color = light_calc(obj, camera, lights, n)
-                    image.putpixel((x, -y),
-                                   (round(color[0] * MAX_RGB),
-                                    round(color[1] * MAX_RGB),
-                                    round(color[2] * MAX_RGB)))
+                    color = light_calc(obj, camera, lights, n, uv)
+                    image.putpixel((x, -y), color)
                     z_buffer[x, y] = z

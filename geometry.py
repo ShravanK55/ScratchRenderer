@@ -181,11 +181,11 @@ class Transformation:
                            [v[0], v[1], v[2], 0],
                            [n[0], n[1], n[2], 0],
                            [0,    0,    0,    1]]
-        inverse_mat = np.matmul(inverse_mat, inverse_rot_mat)
+        inverse_mat = np.matmul(inverse_rot_mat, inverse_mat)
 
         # TODO: Check if this is the proper multiplication order.
         inverse_trans_mat = translation_matrix([-t[0], -t[1], -t[2]])
-        inverse_mat = np.matmul(inverse_mat, inverse_trans_mat)
+        inverse_mat = np.matmul(inverse_trans_mat, inverse_mat)
 
         return inverse_mat
 

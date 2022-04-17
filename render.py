@@ -242,7 +242,7 @@ class Renderer:
         lights_data = self.scene.get("lights")
         for light_data in lights_data:
             light_type = light_data.get("type", "ambient")
-            light_color = light_data.get("color", [0, 0, 0])
+            light_color = light_data.get("color", np.array([0, 0, 0]))
             light_intensity = light_data.get("intensity", 1.0)
             light_position = light_data.get("from")
             light_look_at = light_data.get("to")
@@ -276,15 +276,20 @@ class Renderer:
                 elif transform.get("T"):
                     transformation.apply_translation(transform.get("T"))
 
-            material = object_data.get("material")
-            color = material.get("Cs")
-            ka = material.get("Ka")
-            kd = material.get("Kd")
-            ks = material.get("Ks")
-            specularity = material.get("n")
+            material = object_data.get("material", {})
+            color = material.get("Cs", np.array([0, 0, 0]))
+            ka = material.get("Ka", 0.0)
+            kd = material.get("Kd", 0.0)
+            ks = material.get("Ks", 0.0)
+            kt = material.get("Kt", 0.0)
+            specularity = material.get("n", 1.0)
             texture_path = material.get("texture")
+            texture = None
 
-            obj = Object(transformation, geometry_path, color, ka, kd, ks, specularity, texture_path)
+            if texture_path:
+                texture = self.texture_manager.load_texture(texture_path)
+
+            obj = Object(transformation, geometry_path, color, ka, kd, ks, kt, specularity, texture)
             self.objects.append(obj)
 
     def render(self):
@@ -322,9 +327,9 @@ class Renderer:
                 n0 = [[v0.normal[0]], [v0.normal[1]], [v0.normal[2]], [0]]
                 n1 = [[v1.normal[0]], [v1.normal[1]], [v1.normal[2]], [0]]
                 n2 = [[v2.normal[0]], [v2.normal[1]], [v2.normal[2]], [0]]
-                uv0 = v0.uv
-                uv1 = v1.uv
-                uv2 = v2.uv
+                uv0 = np.array(v0.uv)
+                uv1 = np.array(v1.uv)
+                uv2 = np.array(v2.uv)
 
                 # Applying vertex and normal transformations.
                 pos0 = np.matmul(mvp_matrix, pos0)
@@ -333,6 +338,14 @@ class Renderer:
                 n0 = np.matmul(normal_transform_matrix, n0)
                 n1 = np.matmul(normal_transform_matrix, n1)
                 n2 = np.matmul(normal_transform_matrix, n2)
+
+                n0 = np.transpose(n0[:-1])[0]
+                n1 = np.transpose(n1[:-1])[0]
+                n2 = np.transpose(n2[:-1])[0]
+
+                n0 = n0 / np.sqrt(np.dot(n0, n0))
+                n1 = n1 / np.sqrt(np.dot(n1, n1))
+                n2 = n2 / np.sqrt(np.dot(n2, n2))
 
                 # Homogenizing all the vectors.
                 pos0 = pos0 / pos0[3]
@@ -361,6 +374,6 @@ class Renderer:
 
 
 if __name__ == "__main__":
-    renderer = Renderer("scene.json")
+    renderer = Renderer("table_scene.json")
     image = renderer.render()
     image.show()
