@@ -352,7 +352,6 @@ for triangle in triangle_data.get('data'):
     y1 = triangle.get('v1').get('v')[1]
     x2 = triangle.get('v2').get('v')[0]
     y2 = triangle.get('v2').get('v')[1]
-
     z0 = triangle.get('v0').get('v')[2]
     z1 = triangle.get('v1').get('v')[2]
     z2 = triangle.get('v2').get('v')[2]
@@ -371,10 +370,8 @@ for triangle in triangle_data.get('data'):
     # Getting texture coords
     u0 = triangle.get('v0').get('t')[0]
     v0 = triangle.get('v0').get('t')[1]
-
     u1 = triangle.get('v1').get('t')[0]
     v1 = triangle.get('v1').get('t')[1]
-
     u2 = triangle.get('v2').get('t')[0]
     v2 = triangle.get('v2').get('t')[1]
 
@@ -403,7 +400,6 @@ for triangle in triangle_data.get('data'):
     y1 = v1_array[1] / v1_array[3]
     x2 = v2_array[0] / v2_array[3]
     y2 = v2_array[1] / v2_array[3]
-
     z0 = v0_array[2] / v0_array[3]
     z1 = v1_array[2] / v1_array[3]
     z2 = v2_array[2] / v2_array[3]
