@@ -144,7 +144,8 @@ def fragment_shader(image, z_buffer, obj, camera, lights, pos0, pos1, pos2, n0, 
 
 # DEFERRED RENDERING
 
-def shade_fragment(fragment_pos, lights, n, fragment_color, material, specularity, occlusion=1.0, shadow=0.0):
+def shade_fragment(fragment_pos, lights, n, fragment_color, material, specularity, occlusion=1.0, shadow=0.0,
+                   cel_shade=False):
     """
     Method to calculate the color of a fragment from lighting (Deferred lighting pass).
 
@@ -157,6 +158,7 @@ def shade_fragment(fragment_pos, lights, n, fragment_color, material, specularit
         specularity(float): Specularity of the fragment being rendered.
         occlusion(float): Occlusion of the fragment being rendered. Defaults to 1.0.
         shadow(float): Amount of shadow on the fragment being rendered. Defaults to 1.0.
+        cel_shade(bool): Whether to perform cel shading on the fragment. Defaults to False.
 
     Returns:
         (list): Color of the fragment.
@@ -187,18 +189,48 @@ def shade_fragment(fragment_pos, lights, n, fragment_color, material, specularit
         n_dot_e = np.dot(n, e)
         r_dot_e = np.dot(r, e)
 
+        if cel_shade:
+            light_scale = 0
+            if n_dot_l <= 0.01:
+                light_scale = 0
+            elif (n_dot_l > 0.5 and n_dot_l <= 1):
+                light_scale = 1
+            else:
+                light_scale = 0.5
+
+            # Getting the halfway vec between the light direction and camera direction.
+            half_vec = np.array(l) + np.array(e)
+            half_vec = half_vec / np.sqrt(np.dot(half_vec, half_vec))
+            n_dot_h = np.dot(n, half_vec)
+
+            # Accumulating the diffuse and specular color.
+            diffuse_color += light_color * light_scale
+
+            # Adding to the specular intensity.
+            specular_color += light_color * ((n_dot_h * light_scale) ** specularity)
+            continue
+
         # Clamping the value of R dot E between 0 and 1.
         r_dot_e = max(r_dot_e, 0)
         r_dot_e = min(r_dot_e, 1)
 
-        # Adding to the specular intensity.
+        # Accumulating the specular color.
         specular_color += light_color * (r_dot_e ** specularity)
 
-        # Adding to diffuse color depending on N dot L and N dot E.
+        # Accumulating the diffuse color.
         if n_dot_l > 0 and n_dot_e > 0:
             diffuse_color += light_color * n_dot_l
         elif n_dot_l < 0 and n_dot_e < 0:
             diffuse_color += light_color * n_dot_l * -1.0
+
+    # Quantizing occlusion for cel shading.
+    if cel_shade:
+        if occlusion <= 0.01:
+            occlusion = 0
+        elif (occlusion > 0.5 and occlusion <= 1):
+            occlusion = 1
+        else:
+            occlusion = 0.5
 
     # Calculating the final color.
     ka, kd, ks = material
@@ -390,7 +422,7 @@ def occlusion_blur_shader(g_buffer, camera, noise):
                 g_buffer.set_occlusion_blur(x, y, occlusion_blur)
 
 
-def lighting_pass_shader(image, g_buffer, camera, lights, shadow_bias=0.005):
+def lighting_pass_shader(image, g_buffer, camera, lights, cel_shade=False, shadow_bias=0.005):
     """
     Method implementing a lighting pass shader (Second pass in deferred rendering).
 
@@ -399,7 +431,8 @@ def lighting_pass_shader(image, g_buffer, camera, lights, shadow_bias=0.005):
         g_buffer(GeometryBuffer): Geometry buffer of the image being rendered.
         camera(Camera): Camera that is viewing the scene.
         lights(list): List of lights in the scene.
-        bias(float): Bias to use when checking whether a fragment is in shadow. Defaults to 0.005.
+        cel_shade(bool): Whether to perform cel shading for the fragment. Defaults to False.
+        shadow_bias(float): Bias to use when checking whether a fragment is in shadow. Defaults to 0.005.
 
     """
     transform_stack = TransformStack()
@@ -424,7 +457,8 @@ def lighting_pass_shader(image, g_buffer, camera, lights, shadow_bias=0.005):
                 shadow = get_fragment_shadow(w_pos, w_normal, lights, shadow_bias)
 
                 # Calculating the final color of a fragment from lighting.
-                color = shade_fragment(position, lights, normal, color, material, specularity, occlusion_blur, shadow)
+                color = shade_fragment(position, lights, normal, color, material, specularity, occlusion_blur, shadow,
+                                       cel_shade)
                 image.putpixel((x, -y), color)
 
 

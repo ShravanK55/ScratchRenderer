@@ -196,7 +196,7 @@ class Light:
 
     def set_shadow_buffer(self, x, y, depth):
         """
-        Method to set a depth value on the sahdow buffer.
+        Method to set a depth value on the shadow buffer.
 
         Args:
             x(int): X position in the shadow buffer.

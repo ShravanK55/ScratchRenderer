@@ -442,9 +442,12 @@ class Renderer:
             obj = Object(transformation, geometry_path, color, ka, kd, ks, kt, specularity, texture)
             self.objects.append(obj)
 
-    def render(self):
+    def render(self, cel_shade=False):
         """
         Method to render the scene.
+
+        Args:
+            cel_shade(bool): Whether to perform cel shading for the fragment. Defaults to False.
 
         Returns:
             (Image): Image of the rendered scene.
@@ -543,7 +546,7 @@ class Renderer:
         occlusion_blur_shader(self.geometry_buffer, self.camera, ssao_noise)
 
         # Calculating the lighting in the second pass of the deferred fragment shader.
-        lighting_pass_shader(image, self.geometry_buffer, self.camera, self.lights)
+        lighting_pass_shader(image, self.geometry_buffer, self.camera, self.lights, cel_shade)
 
         return image
 
@@ -648,7 +651,7 @@ class Renderer:
 
 if __name__ == "__main__":
     renderer = Renderer("table_scene.json")
-    image = renderer.render()
+    image = renderer.render(cel_shade=False)
     image.show()
 
     RENDER_GEOMETRY_BUFFER = False
@@ -662,7 +665,7 @@ if __name__ == "__main__":
         depth_image.show()
         occlusion_image.show()
 
-    RENDER_SHADOW_BUFFERS = True
+    RENDER_SHADOW_BUFFERS = False
     if RENDER_SHADOW_BUFFERS:
         shadow_buffer_images = renderer.render_shadow_buffers()
         for shadow_buffer_image in shadow_buffer_images:
