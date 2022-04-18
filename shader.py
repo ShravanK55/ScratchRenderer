@@ -143,7 +143,7 @@ def fragment_shader(image, z_buffer, obj, camera, lights, pos0, pos1, pos2, n0, 
 
 # DEFERRED RENDERING
 
-def shade_fragment(fragment_pos, lights, n, fragment_color, material, specularity):
+def shade_fragment(fragment_pos, lights, n, fragment_color, material, specularity, occlusion=1.0):
     """
     Method to calculate the color of a fragment from lighting (Deferred lighting pass).
 
@@ -154,6 +154,7 @@ def shade_fragment(fragment_pos, lights, n, fragment_color, material, specularit
         fragment_color(list): Color of the fragment being rendered.
         material(list): Material of the fragment being rendered.
         specularity(float): Specularity of the fragment being rendered.
+        occlusion(float): Occlusion of the fragment being rendered. Defaults to 1.0.
 
     Returns:
         (list): Color of the fragment.
@@ -199,7 +200,7 @@ def shade_fragment(fragment_pos, lights, n, fragment_color, material, specularit
 
     # Calculating the final color.
     ka, kd, ks = material
-    color = object_color * ((ka * ambient_color) + (kd * diffuse_color) + (ks * specular_color))
+    color = object_color * ((ka * ambient_color) + (kd * diffuse_color) + (ks * specular_color)) * occlusion
     color = (round(color[0] * MAX_RGB), round(color[1] * MAX_RGB), round(color[2] * MAX_RGB))
 
     return color
@@ -280,7 +281,7 @@ def geometry_pass_shader(g_buffer, obj, camera, pos0, pos1, pos2, vpos0, vpos1, 
                 z = alpha * z0 + beta * z1 + gamma * z2
 
                 # Adding geometry to the geometry buffer.
-                g_buffer.set_attributes(x, y, vpos, n, color, material, obj.specularity, z, 1.0)
+                g_buffer.set_attributes(x, y, vpos, n, color, material, obj.specularity, z)
 
 
 def lighting_pass_shader(image, g_buffer, camera, lights):
@@ -296,10 +297,10 @@ def lighting_pass_shader(image, g_buffer, camera, lights):
     """
     for y in range(camera.resolution[1]):
         for x in range(camera.resolution[0]):
-            position, normal, color, material, specularity, depth, _ = g_buffer.get_attributes(x, y)
+            position, normal, color, material, specularity, depth, _, occlusion_blur = g_buffer.get_attributes(x, y)
 
             if depth != np.inf:
-                color = shade_fragment(position, lights, normal, color, material, specularity)
+                color = shade_fragment(position, lights, normal, color, material, specularity, occlusion_blur)
                 image.putpixel((x, -y), color)
 
 
@@ -320,7 +321,7 @@ def occlusion_pass_shader(g_buffer, camera, kernel, noise, radius=0.5, bias=0.02
 
     for y in range(camera.resolution[1]):
         for x in range(camera.resolution[0]):
-            position, normal, _, _, _, depth, _ = g_buffer.get_attributes(x, y)
+            position, normal, _, _, _, depth, _, _ = g_buffer.get_attributes(x, y)
 
             if depth != np.inf:
                 # Getting a random basis to form the sampling hemisphere around.
@@ -363,3 +364,44 @@ def occlusion_pass_shader(g_buffer, camera, kernel, noise, radius=0.5, bias=0.02
 
                 occlusion = 1.0 - (occlusion / kernel.size)
                 g_buffer.set_occlusion(x, y, occlusion)
+
+
+def occlusion_blur_shader(g_buffer, camera, noise):
+    """
+    Method to blur the occlusion buffer to remove noise.
+
+    Args:
+        g_buffer(GeometryBuffer): Geometry buffer of the image being rendered.
+        camera(Camera): Camera that is viewing the scene.
+        noise(SSAONoise): SSAO noise to use for getting blur parameters.
+
+    """
+    tile_size = noise.tile_size
+    for y in range(camera.resolution[1]):
+        for x in range(camera.resolution[0]):
+            _, _, _, _, _, depth, _, _ = g_buffer.get_attributes(x, y)
+
+            if depth != np.inf:
+                result = 0.0
+                num_accumulated = 0
+
+                # Blurring the noise based on tile size.
+                for oy in range(-int(tile_size / 2), int(tile_size / 2)):
+                    for ox in range(-int(tile_size / 2), int(tile_size / 2)):
+                        offset_x = x + ox
+                        offset_y = y + oy
+
+                        # Clamping offsets to the texture bounds.
+                        offset_x = min(offset_x, camera.resolution[0])
+                        offset_x = max(offset_x, 0)
+                        offset_y = min(offset_y, camera.resolution[1])
+                        offset_y = max(offset_y, 0)
+
+                        _, _, _, _, _, offset_depth, occlusion, _ = g_buffer.get_attributes(offset_x, offset_y)
+
+                        if offset_depth != np.inf:
+                            result += occlusion
+                            num_accumulated += 1
+
+                occlusion_blur = result / num_accumulated
+                g_buffer.set_occlusion_blur(x, y, occlusion_blur)

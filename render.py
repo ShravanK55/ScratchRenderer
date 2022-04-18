@@ -9,7 +9,7 @@ from geometry import Transformation, TransformStack, mat_inverse_transpose
 import json
 import numpy as np
 from PIL import Image
-from shader import fragment_shader, geometry_pass_shader, lighting_pass_shader, occlusion_pass_shader
+from shader import geometry_pass_shader, lighting_pass_shader, occlusion_pass_shader, occlusion_blur_shader
 from texture import TextureManager
 
 
@@ -33,6 +33,7 @@ class GeometryBuffer:
         self.material_buffer = [[[0, 0, 0] for _ in range(self.resolution[1])] for _ in range(self.resolution[0])]
         self.specular_buffer = np.matrix(np.zeros((self.resolution[0], self.resolution[1])))
         self.occlusion_buffer = np.matrix(np.ones((self.resolution[0], self.resolution[1])))
+        self.occlusion_blur_buffer = np.matrix(np.ones((self.resolution[0], self.resolution[1])))
         self.depth_buffer = np.matrix(np.ones((self.resolution[0], self.resolution[1])) * np.inf)
 
         # Max depth and specularity is used for visualization purposes only.
@@ -49,6 +50,7 @@ class GeometryBuffer:
         self.material_buffer = [[[0, 0, 0] for _ in range(self.resolution[1])] for _ in range(self.resolution[0])]
         self.specular_buffer = np.matrix(np.zeros((self.resolution[0], self.resolution[1])))
         self.occlusion_buffer = np.matrix(np.ones((self.resolution[0], self.resolution[1])))
+        self.occlusion_blur_buffer = np.matrix(np.ones((self.resolution[0], self.resolution[1])))
         self.depth_buffer = np.matrix(np.ones((self.resolution[0], self.resolution[1])) * np.inf)
 
         # Max depth and specularity is used for visualization purposes only.
@@ -65,14 +67,15 @@ class GeometryBuffer:
 
         Returns:
             (tuple): Tuple containing a position vector, normal vector, color vector, material vector, specular value,
-                depth value and an occlusion value from the geometry buffer.
+                depth value, occlusion value and an occlusion blur value from the geometry buffer.
 
         """
         return (self.get_position(x, y), self.get_normal(x, y), self.get_color(x, y), self.get_material(x, y),
-                self.get_specularity(x, y), self.get_depth(x, y), self.get_occlusion(x, y))
+                self.get_specularity(x, y), self.get_depth(x, y), self.get_occlusion(x, y),
+                self.get_occlusion_blur(x, y))
 
     def set_attributes(self, x, y, position=None, normal=None, color=None, material=None, specularity=0.0,
-                       depth=np.inf, occlusion=1.0):
+                       depth=np.inf):
         """
         Method to set the attributes at a point in the geometry buffer.
 
@@ -85,7 +88,6 @@ class GeometryBuffer:
             material(list): Material vector. Defaults to None.
             specularity(float): Specularity value. Defaults to 0.0.
             depth(float): Depth value. Defaults to np.inf.
-            occlusion(float): Occlusion value. Defaults to 1.0.
 
         Returns:
             (bool): Whether the attributes were updated in the geometry buffer.
@@ -106,7 +108,6 @@ class GeometryBuffer:
                 self.set_material(x, y, material)
 
             self.set_specularity(x, y, specularity)
-            self.set_occlusion(x, y, occlusion)
 
         return success
 
@@ -267,6 +268,32 @@ class GeometryBuffer:
 
         """
         self.occlusion_buffer[x, y] = occlusion
+
+    def get_occlusion_blur(self, x, y):
+        """
+        Method to get a occlusion value on the occlusion blur buffer.
+
+        Args:
+            x(int): X position in the occlusion blur buffer.
+            y(int): Y position in the occlusion blur buffer.
+
+        Returns:
+            (float): Occlusion value from the occlusion blur buffer.
+
+        """
+        return self.occlusion_blur_buffer[x, y]
+
+    def set_occlusion_blur(self, x, y, occlusion_blur):
+        """
+        Method to set a occlusion value on the occlusion blur buffer.
+
+        Args:
+            x(int): X position in the occlusion blur buffer.
+            y(int): Y position in the occlusion blur buffer.
+            occlusion(float): Occlusion blur value.
+
+        """
+        self.occlusion_blur_buffer[x, y] = occlusion_blur
 
     def get_depth(self, x, y):
         """
@@ -506,6 +533,9 @@ class Renderer:
         # Calculating the occlusion values for ambient occlusion.
         occlusion_pass_shader(self.geometry_buffer, self.camera, ssao_kernel, ssao_noise)
 
+        # Blurring the occlusion buffer to remove noise.
+        occlusion_blur_shader(self.geometry_buffer, self.camera, ssao_noise)
+
         # Calculating the lighting in the second pass of the deferred fragment shader.
         lighting_pass_shader(image, self.geometry_buffer, self.camera, self.lights)
 
@@ -539,7 +569,8 @@ class Renderer:
 
         for y in range(self.camera.resolution[1]):
             for x in range(self.camera.resolution[0]):
-                position, normal, color, _, specularity, depth, occlusion = self.geometry_buffer.get_attributes(x, y)
+                position, normal, color, _, specularity, depth, occlusion, occlusion_blur = \
+                    self.geometry_buffer.get_attributes(x, y)
 
                 if depth != np.inf:
                     # Adding the position value color.
@@ -567,7 +598,7 @@ class Renderer:
                     depth_image.putpixel((x, -y), depth_color)
 
                     # Adding the occlusion color.
-                    occlusion_val = round(occlusion * MAX_RGB)
+                    occlusion_val = round(occlusion_blur * MAX_RGB)
                     occlusion_color = (occlusion_val, occlusion_val, occlusion_val)
                     occlusion_image.putpixel((x, -y), occlusion_color)
 
