@@ -2,7 +2,7 @@
 Module implementing shader functions.
 """
 
-from geometry import TransformStack
+from geometry import TransformStack, mat_inverse, mat_inverse_transpose
 import math
 import numpy as np
 from texture import get_texture_color
@@ -144,7 +144,7 @@ def fragment_shader(image, z_buffer, obj, camera, lights, pos0, pos1, pos2, n0, 
 
 # DEFERRED RENDERING
 
-def shade_fragment(fragment_pos, lights, n, fragment_color, material, specularity, occlusion=1.0):
+def shade_fragment(fragment_pos, lights, n, fragment_color, material, specularity, occlusion=1.0, shadow=0.0):
     """
     Method to calculate the color of a fragment from lighting (Deferred lighting pass).
 
@@ -156,6 +156,7 @@ def shade_fragment(fragment_pos, lights, n, fragment_color, material, specularit
         material(list): Material of the fragment being rendered.
         specularity(float): Specularity of the fragment being rendered.
         occlusion(float): Occlusion of the fragment being rendered. Defaults to 1.0.
+        shadow(float): Amount of shadow on the fragment being rendered. Defaults to 1.0.
 
     Returns:
         (list): Color of the fragment.
@@ -201,7 +202,8 @@ def shade_fragment(fragment_pos, lights, n, fragment_color, material, specularit
 
     # Calculating the final color.
     ka, kd, ks = material
-    color = object_color * ((ka * ambient_color) + (kd * diffuse_color) + (ks * specular_color)) * occlusion
+    color = object_color * ((ka * ambient_color) + ((kd * diffuse_color) + (ks * specular_color)) * (1.0 - shadow)) * \
+        occlusion
     color = (round(color[0] * MAX_RGB), round(color[1] * MAX_RGB), round(color[2] * MAX_RGB))
 
     return color
@@ -388,7 +390,7 @@ def occlusion_blur_shader(g_buffer, camera, noise):
                 g_buffer.set_occlusion_blur(x, y, occlusion_blur)
 
 
-def lighting_pass_shader(image, g_buffer, camera, lights):
+def lighting_pass_shader(image, g_buffer, camera, lights, shadow_bias=0.005):
     """
     Method implementing a lighting pass shader (Second pass in deferred rendering).
 
@@ -397,14 +399,32 @@ def lighting_pass_shader(image, g_buffer, camera, lights):
         g_buffer(GeometryBuffer): Geometry buffer of the image being rendered.
         camera(Camera): Camera that is viewing the scene.
         lights(list): List of lights in the scene.
+        bias(float): Bias to use when checking whether a fragment is in shadow. Defaults to 0.005.
 
     """
+    transform_stack = TransformStack()
+    transform_stack.push(camera.projection_matrix)
+    transform_stack.push(camera.cam_matrix)
+    inv_vp_matrix = np.linalg.inv(transform_stack.top())
+    inv_cam_matrix = mat_inverse(mat_inverse_transpose(camera.cam_matrix))
+
     for y in range(camera.resolution[1]):
         for x in range(camera.resolution[0]):
             position, normal, color, material, specularity, depth, _, occlusion_blur = g_buffer.get_attributes(x, y)
 
             if depth != np.inf:
-                color = shade_fragment(position, lights, normal, color, material, specularity, occlusion_blur)
+                n = [normal[0], normal[1], normal[2], 0]
+
+                # Calculating the shadow value of a fragment.
+                ndc_x = (x / ((camera.resolution[0] - 1) / 2)) - 1
+                ndc_y = (y / ((camera.resolution[1] - 1) / 2)) - 1
+                w_pos = np.matmul(inv_vp_matrix, [ndc_x, ndc_y, depth, 1])
+                w_normal = np.matmul(inv_cam_matrix, n)
+                w_normal = w_normal / np.sqrt(np.dot(w_normal, w_normal))
+                shadow = get_fragment_shadow(w_pos, w_normal, lights, shadow_bias)
+
+                # Calculating the final color of a fragment from lighting.
+                color = shade_fragment(position, lights, normal, color, material, specularity, occlusion_blur, shadow)
                 image.putpixel((x, -y), color)
 
 
@@ -499,3 +519,61 @@ def shadow_buffer_shader(objects, lights):
 
             # Popping the object transformation off the stack.
             transform_stack.pop()
+
+
+def get_fragment_shadow(w_pos, w_normal, lights, bias=0.005):
+    """
+    Method to get the amount of shadow cast on a fragment by all lights in the scene.
+
+    Args:
+        w_pos(list): World space position of the fragment.
+        w_normal(list): World space normal of the fragment.
+        lights(list): List of lights in the scene.
+        bias(float): Bias to use when checking whether a fragment is in shadow. Defaults to 0.005.
+
+    Returns:
+        (float): Shadow value of the fragment.
+
+    """
+    shadow = 0.0
+    num_directional_lights = 0
+
+    for light in lights:
+        if light.type == "ambient":
+            continue
+
+        num_directional_lights += 1
+
+        # Getting the position in light projection space.
+        light_transform_stack = TransformStack()
+        light_transform_stack.push(light.camera.projection_matrix)
+        light_transform_stack.push(light.camera.cam_matrix)
+        l_pos = np.matmul(light_transform_stack.top(), w_pos)
+
+        # Calculating the shadow bias.
+        lv_pos = np.matmul(light.camera.cam_matrix, w_pos)
+        l_norm = np.matmul(light.camera.cam_matrix, w_normal)
+        l_norm = l_norm / np.sqrt(np.dot(l_norm, l_norm))
+        l_dir = -lv_pos / np.sqrt(np.dot(lv_pos, lv_pos))
+        shadow_bias = max(0.05 * (1.0 - np.dot(l_norm, l_dir)), bias);
+
+        # Homogenizing all the position vector.
+        l_pos = l_pos / l_pos[3]
+
+        # Conversion to light raster space.
+        x = round((l_pos[0] + 1) * ((light.camera.resolution[0] - 1) / 2))
+        y = round((l_pos[1] + 1) * ((light.camera.resolution[1] - 1) / 2))
+        z = l_pos[2]
+
+        if (x < 0) or (y < 0) or (x > light.camera.resolution[0] - 1) or (y > light.camera.resolution[1] - 1):
+            continue
+
+        # Accumulate the shadow value if the fragment is occluded in the light shadow buffer.
+        z_shadow = light.get_shadow_buffer_depth(x, y)
+        if z - shadow_bias > z_shadow:
+            shadow += 1.0
+
+    if num_directional_lights == 0:
+        return shadow
+
+    return shadow / num_directional_lights
