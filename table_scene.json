@@ -41,7 +41,7 @@
       {
         "id":"plane",
         "notes":"",
-        "geometry":"plane1",
+        "geometry":"plane",
         "material":{
           "Cs":[
             0.5,
@@ -53,7 +53,15 @@
           "Ks":1.0,
           "n": 2.0
         },
-        "transforms":[]
+        "transforms":[
+          {
+            "S":[
+              3.0,
+              3.0,
+              3.0
+            ]
+          }
+        ]
       }
     ],
     "lights":[

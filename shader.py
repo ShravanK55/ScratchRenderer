@@ -392,9 +392,9 @@ def occlusion_blur_shader(g_buffer, camera, noise):
                         offset_y = y + oy
 
                         # Clamping offsets to the texture bounds.
-                        offset_x = min(offset_x, camera.resolution[0])
+                        offset_x = min(offset_x, camera.resolution[0] - 1)
                         offset_x = max(offset_x, 0)
-                        offset_y = min(offset_y, camera.resolution[1])
+                        offset_y = min(offset_y, camera.resolution[1] - 1)
                         offset_y = max(offset_y, 0)
 
                         _, _, _, _, _, offset_depth, occlusion, _ = g_buffer.get_attributes(offset_x, offset_y)
