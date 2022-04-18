@@ -8,7 +8,7 @@ from geometry import Transformation, TransformStack
 import json
 import numpy as np
 from PIL import Image
-from shader import fragment_shader, geometry_pass_shader
+from shader import fragment_shader, geometry_pass_shader, lighting_pass_shader
 from texture import TextureManager
 
 
@@ -29,10 +29,13 @@ class GeometryBuffer:
         self.position_buffer = [[[0, 0, 0] for _ in range(self.resolution[1])] for _ in range(self.resolution[0])]
         self.normal_buffer = [[[0, 0, 0] for _ in range(self.resolution[1])] for _ in range(self.resolution[0])]
         self.color_buffer = [[[0, 0, 0] for _ in range(self.resolution[1])] for _ in range(self.resolution[0])]
+        self.material_buffer = [[[0, 0, 0] for _ in range(self.resolution[1])] for _ in range(self.resolution[0])]
+        self.specular_buffer = np.matrix(np.zeros((self.resolution[0], self.resolution[1])))
         self.depth_buffer = np.matrix(np.ones((self.resolution[0], self.resolution[1])) * np.inf)
 
-        # Max depth is used for visualization purposes only.
+        # Max depth and specularity is used for visualization purposes only.
         self.max_depth = np.NINF
+        self.max_specularity = np.NINF
 
     def clear(self):
         """
@@ -41,10 +44,13 @@ class GeometryBuffer:
         self.position_buffer = [[[0, 0, 0] for _ in range(self.resolution[1])] for _ in range(self.resolution[0])]
         self.normal_buffer = [[[0, 0, 0] for _ in range(self.resolution[1])] for _ in range(self.resolution[0])]
         self.color_buffer = [[[0, 0, 0] for _ in range(self.resolution[1])] for _ in range(self.resolution[0])]
+        self.material_buffer = [[[0, 0, 0] for _ in range(self.resolution[1])] for _ in range(self.resolution[0])]
+        self.specular_buffer = np.matrix(np.zeros((self.resolution[0], self.resolution[1])))
         self.depth_buffer = np.matrix(np.ones((self.resolution[0], self.resolution[1])) * np.inf)
 
-        # Max depth is used for visualization purposes only.
+        # Max depth and specularity is used for visualization purposes only.
         self.max_depth = np.NINF
+        self.max_specularity = np.NINF
 
     def get_attributes(self, x, y):
         """
@@ -55,13 +61,15 @@ class GeometryBuffer:
             y(int): Y position in the geometry buffer.
 
         Returns:
-            (tuple): Tuple containing a position vector, normal vector, color vector and a depth value from the geometry
-                buffer.
+            (tuple): Tuple containing a position vector, normal vector, color vector, material vector, specular value
+                and a depth value from the geometry buffer.
 
         """
-        return (self.get_position(x, y), self.get_normal(x, y), self.get_color(x, y), self.get_depth(x, y))
+        return (self.get_position(x, y), self.get_normal(x, y), self.get_color(x, y), self.get_material(x, y),
+                self.get_specularity(x, y), self.get_depth(x, y))
 
-    def set_attributes(self, x, y, position=None, normal=None, color=None, depth=np.inf):
+    def set_attributes(self, x, y, position=None, normal=None, color=None, material=None, specularity=0.0,
+                       depth=np.inf):
         """
         Method to set the attributes at a point in the geometry buffer.
 
@@ -70,6 +78,7 @@ class GeometryBuffer:
             y(int): Y position in the geometry buffer.
             position(list): Position vector. Defaults to None.
             color(list): Color vector. Defaults to None.
+            material(list): Material vector. Defaults to None.
             normal(list): Normal vector. Defaults to None.
             depth(float): Depth value. Defaults to np.inf.
 
@@ -87,6 +96,11 @@ class GeometryBuffer:
 
             if color is not None:
                 self.set_color(x, y, color)
+
+            if material is not None:
+                self.set_material(x, y, material)
+
+            self.set_specularity(x, y, specularity)
 
         return success
 
@@ -167,6 +181,60 @@ class GeometryBuffer:
 
         """
         self.color_buffer[x][y] = color
+
+    def get_material(self, x, y):
+        """
+        Method to get a material on the material buffer.
+
+        Args:
+            x(int): X position in the material buffer.
+            y(int): Y position in the material buffer.
+
+        Returns:
+            (list): Color from the color buffer.
+
+        """
+        return self.material_buffer[x][y]
+
+    def set_material(self, x, y, material):
+        """
+        Method to set a material on the material buffer.
+
+        Args:
+            x(int): X position in the material buffer.
+            y(int): Y position in the material buffer.
+            material(list): Material vector.
+
+        """
+        self.material_buffer[x][y] = material
+
+    def get_specularity(self, x, y):
+        """
+        Method to get a specular value on the specular buffer.
+
+        Args:
+            x(int): X position in the specular buffer.
+            y(int): Y position in the specular buffer.
+
+        Returns:
+            (float): Specular value from the specular buffer.
+
+        """
+        return self.specular_buffer[x, y]
+
+    def set_specularity(self, x, y, specularity):
+        """
+        Method to set a specular value on the specular buffer.
+
+        Args:
+            x(int): X position in the specular buffer.
+            y(int): Y position in the specular buffer.
+            specularity(float): Specular value.
+
+        """
+        self.specular_buffer[x, y] = specularity
+        if specularity > self.max_specularity:
+            self.max_specularity = specularity
 
     def get_depth(self, x, y):
         """
@@ -391,11 +459,14 @@ class Renderer:
                                 pos2[2]])
 
                 # Passing the geometry to the first pass of the deferred fragment shader.
-                geometry_pass_shader(image, self.geometry_buffer, obj, self.camera, self.lights, pos0, pos1, pos2,
-                                     wpos0, wpos1, wpos2, n0, n1, n2, uv0, uv1, uv2)
+                geometry_pass_shader(self.geometry_buffer, obj, self.camera, pos0, pos1, pos2, wpos0, wpos1, wpos2,
+                                     n0, n1, n2, uv0, uv1, uv2)
 
             # Popping the object transformation off the stack.
             self.transform_stack.pop()
+
+        # Calculating the lighting in the second pass of the deferred fragment shader.
+        lighting_pass_shader(image, self.geometry_buffer, self.camera, self.lights)
 
         return image
 
@@ -411,6 +482,7 @@ class Renderer:
         position_image = Image.new("RGB", self.camera.resolution, 0x000000)
         normal_image = Image.new("RGB", self.camera.resolution, 0x000000)
         albedo_image = Image.new("RGB", self.camera.resolution, 0x000000)
+        specular_image = Image.new("RGB", self.camera.resolution, 0x000000)
         depth_image = Image.new("RGB", self.camera.resolution, 0x000000)
         MAX_RGB = 255
         for y in range(self.camera.resolution[1]):
@@ -418,11 +490,12 @@ class Renderer:
                 position_image.putpixel((x, y), (0, 0, 0))
                 normal_image.putpixel((x, y), (0, 0, 0))
                 albedo_image.putpixel((x, y), (0, 0, 0))
+                specular_image.putpixel((x, y), (0, 0, 0))
                 depth_image.putpixel((x, y), (0, 0, 0))
 
         for y in range(self.camera.resolution[1]):
             for x in range(self.camera.resolution[0]):
-                position, normal, color, depth = self.geometry_buffer.get_attributes(x, y)
+                position, normal, color, _, specularity, depth = self.geometry_buffer.get_attributes(x, y)
 
                 if depth != np.inf:
                     # Adding the position value color.
@@ -439,12 +512,17 @@ class Renderer:
                     albedo_color = (round(color[0] * MAX_RGB), round(color[1] * MAX_RGB), round(color[2] * MAX_RGB))
                     albedo_image.putpixel((x, -y), albedo_color)
 
+                    # Adding the specular color.
+                    specular_val = round(specularity / self.geometry_buffer.max_specularity * MAX_RGB)
+                    specular_color = (specular_val, specular_val, specular_val)
+                    specular_image.putpixel((x, -y), specular_color)
+
                     # Adding the depth color.
                     depth_val = round(depth / self.geometry_buffer.max_depth * MAX_RGB)
                     depth_color = (depth_val, depth_val, depth_val)
                     depth_image.putpixel((x, -y), depth_color)
 
-        return (position_image, normal_image, albedo_image, depth_image)
+        return (position_image, normal_image, albedo_image, specular_image, depth_image)
 
 
 if __name__ == "__main__":
@@ -454,8 +532,9 @@ if __name__ == "__main__":
 
     RENDER_GEOMETRY_BUFFER = True
     if RENDER_GEOMETRY_BUFFER:
-        position_image, normal_image, albedo_image, depth_image = renderer.render_geometry_buffer()
+        position_image, normal_image, albedo_image, specular_image, depth_image = renderer.render_geometry_buffer()
         position_image.show()
         normal_image.show()
         albedo_image.show()
+        specular_image.show()
         depth_image.show()

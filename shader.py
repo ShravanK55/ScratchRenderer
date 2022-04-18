@@ -73,6 +73,67 @@ def light_calc(obj, camera, lights, n, uv=None):
     return color
 
 
+def fragment_light_calc(camera, lights, n, fragment_color, material, specularity):
+    """
+    Method to calculate the color of a fragment from lighting (Deferred lighting pass).
+
+    Args:
+        camera(Camera): Camera that is viewing the scene.
+        lights(list): List of lights in the scene.
+        n(list): Normal vector of the fragment being shaded.
+        fragment_color(list): Color of the fragment being rendered.
+        material(list): Material of the fragment being rendered.
+        specularity(float): Specularity of the fragment being rendered.
+
+    Returns:
+        (list): Color of the fragment.
+
+    """
+    MAX_RGB = 255
+    object_color = np.array(fragment_color)
+    ambient_color = np.array([0.0, 0.0, 0.0])
+    diffuse_color = np.array([0.0, 0.0, 0.0])
+    specular_color = np.array([0.0, 0.0, 0.0])
+
+    for light in lights:
+        light_color = np.array(light.color) * light.intensity
+
+        if light.type == "ambient":
+            ambient_color = light_color
+            continue
+
+        # Getting the light, normal, eye direction and reflected light vectors.
+        l = light.direction
+        e = camera.direction
+        r = 2 * np.dot(n, l) * n - l
+        r = r / np.sqrt(np.dot(r, r))
+
+        # Calculating the N dot L, N dot E and R dot E products.
+        n_dot_l = np.dot(n, l)
+        n_dot_e = np.dot(n, e)
+        r_dot_e = np.dot(r, e)
+
+        # Clamping the value of R dot E between 0 and 1.
+        r_dot_e = max(r_dot_e, 0)
+        r_dot_e = min(r_dot_e, 1)
+
+        # Adding to the specular intensity.
+        specular_color += light_color * (r_dot_e ** specularity)
+
+        # Adding to diffuse color depending on N dot L and N dot E.
+        if n_dot_l > 0 and n_dot_e > 0:
+            diffuse_color += light_color * n_dot_l
+        elif n_dot_l < 0 and n_dot_e < 0:
+            diffuse_color += light_color * n_dot_l * -1.0
+
+    # Calculating the final color.
+    ka, kd, ks = material
+    color = object_color * ((ka * ambient_color) + (kd * diffuse_color) + (ks * specular_color))
+    color = (round(color[0] * MAX_RGB), round(color[1] * MAX_RGB), round(color[2] * MAX_RGB))
+
+    return color
+
+
 def fragment_shader(image, z_buffer, obj, camera, lights, pos0, pos1, pos2, n0, n1, n2, uv0, uv1, uv2):
     """
     Method implementing a fragment shader (forward rendering).
@@ -139,17 +200,15 @@ def fragment_shader(image, z_buffer, obj, camera, lights, pos0, pos1, pos2, n0, 
                     z_buffer[x, y] = z
 
 
-def geometry_pass_shader(image, g_buffer, obj, camera, lights, pos0, pos1, pos2, wpos0, wpos1, wpos2, n0, n1, n2, uv0,
+def geometry_pass_shader(g_buffer, obj, camera, pos0, pos1, pos2, wpos0, wpos1, wpos2, n0, n1, n2, uv0,
                          uv1, uv2):
     """
     Method implementing a geometry pass shader (First pass in deferred rendering).
 
     Args:
-        image(Image): Image to write the pixels into.
         g_buffer(GeometryBuffer): Geometry buffer of the image being rendered.
         obj(Object): Object being rendered.
         camera(Camera): Camera that is viewing the scene.
-        lights(list): List of lights in the scene.
         pos0(list): Position of vertex 0.
         pos1(list): Position of vertex 1.
         pos2(list): Position of vertex 2.
@@ -207,16 +266,33 @@ def geometry_pass_shader(image, g_buffer, obj, camera, lights, pos0, pos1, pos2,
                 # Getting the object/texture color.
                 color = obj.color
                 if obj.texture:
-                    color = get_texture_color(obj.texture, uv)
+                    color = get_texture_color(obj.texture, uv) * obj.kt
+
+                # Getting the object material.
+                material = [obj.ka, obj.kd, obj.ks]
 
                 # Interpolating the Z value.
                 z = alpha * z0 + beta * z1 + gamma * z2
 
                 # Adding geometry to the geometry buffer.
-                success = g_buffer.set_attributes(x, y, wpos, n, color, z)
+                g_buffer.set_attributes(x, y, wpos, n, color, material, obj.specularity, z)
 
-                # Shading the pixel.
-                if success:
-                    n = alpha * n0 + beta * n1 + gamma * n2
-                    color = light_calc(obj, camera, lights, n, uv)
-                    image.putpixel((x, -y), color)
+
+def lighting_pass_shader(image, g_buffer, camera, lights):
+    """
+    Method implementing a lighting pass shader (Second pass in deferred rendering).
+
+    Args:
+        image(Image): Image to write the pixels into.
+        g_buffer(GeometryBuffer): Geometry buffer of the image being rendered.
+        camera(Camera): Camera that is viewing the scene.
+        lights(list): List of lights in the scene.
+
+    """
+    for y in range(camera.resolution[1]):
+        for x in range(camera.resolution[0]):
+            position, normal, color, material, specularity, depth = g_buffer.get_attributes(x, y)
+
+            if depth != np.inf:
+                color = fragment_light_calc(camera, lights, normal, color, material, specularity)
+                image.putpixel((x, -y), color)
