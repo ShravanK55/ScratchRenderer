@@ -5,8 +5,10 @@ Module implementing shader functions.
 import math
 import numpy as np
 from texture import get_texture_color
-from utils import triangle_area
+from utils import triangle_area, smooth_step
 
+
+# FORWARD RENDERING
 
 def light_calc(obj, camera, lights, n, uv=None):
     """
@@ -69,68 +71,6 @@ def light_calc(obj, camera, lights, n, uv=None):
     else:
         color = object_color * ((obj.ka * ambient_color) + (obj.kd * diffuse_color)) + (obj.ks * specular_color)
         color = (round(color[0] * MAX_RGB), round(color[1] * MAX_RGB), round(color[2] * MAX_RGB))
-
-    return color
-
-
-def fragment_light_calc(fragment_pos, lights, n, fragment_color, material, specularity):
-    """
-    Method to calculate the color of a fragment from lighting (Deferred lighting pass).
-
-    Args:
-        fragment_pos(list): Position of the fragment in view space.
-        lights(list): List of lights in the scene.
-        n(list): Normal vector of the fragment being shaded.
-        fragment_color(list): Color of the fragment being rendered.
-        material(list): Material of the fragment being rendered.
-        specularity(float): Specularity of the fragment being rendered.
-
-    Returns:
-        (list): Color of the fragment.
-
-    """
-    MAX_RGB = 255
-    object_color = np.array(fragment_color)
-    ambient_color = np.array([0.0, 0.0, 0.0])
-    diffuse_color = np.array([0.0, 0.0, 0.0])
-    specular_color = np.array([0.0, 0.0, 0.0])
-
-    for light in lights:
-        light_color = np.array(light.color) * light.intensity
-
-        if light.type == "ambient":
-            ambient_color = light_color
-            continue
-
-        # Getting the light, normal, eye direction and reflected light vectors.
-        l = light.view_space_direction
-        e = -1 * fragment_pos[:-1]
-        e = e / np.sqrt(np.dot(e, e))
-        r = 2 * np.dot(n, l) * n - l
-        r = r / np.sqrt(np.dot(r, r))
-
-        # Calculating the N dot L, N dot E and R dot E products.
-        n_dot_l = np.dot(n, l)
-        n_dot_e = np.dot(n, e)
-        r_dot_e = np.dot(r, e)
-
-        # Clamping the value of R dot E between 0 and 1.
-        r_dot_e = max(r_dot_e, 0)
-        r_dot_e = min(r_dot_e, 1)
-
-        # Adding to the specular intensity.
-        specular_color += light_color * (r_dot_e ** specularity)
-
-        # Adding to diffuse color depending on N dot L and N dot E.
-        if n_dot_l > 0 and n_dot_e > 0:
-            diffuse_color += light_color * n_dot_l
-        elif n_dot_l < 0 and n_dot_e < 0:
-            diffuse_color += light_color * n_dot_l * -1.0
-
-    # Calculating the final color.
-    ka, kd, ks = material
-    color = object_color * ((ka * ambient_color) + (kd * diffuse_color) + (ks * specular_color))
-    color = (round(color[0] * MAX_RGB), round(color[1] * MAX_RGB), round(color[2] * MAX_RGB))
 
     return color
 
@@ -199,6 +139,70 @@ def fragment_shader(image, z_buffer, obj, camera, lights, pos0, pos1, pos2, n0, 
                     color = light_calc(obj, camera, lights, n, uv)
                     image.putpixel((x, -y), color)
                     z_buffer[x, y] = z
+
+
+# DEFERRED RENDERING
+
+def shade_fragment(fragment_pos, lights, n, fragment_color, material, specularity):
+    """
+    Method to calculate the color of a fragment from lighting (Deferred lighting pass).
+
+    Args:
+        fragment_pos(list): Position of the fragment in view space.
+        lights(list): List of lights in the scene.
+        n(list): Normal vector of the fragment being shaded.
+        fragment_color(list): Color of the fragment being rendered.
+        material(list): Material of the fragment being rendered.
+        specularity(float): Specularity of the fragment being rendered.
+
+    Returns:
+        (list): Color of the fragment.
+
+    """
+    MAX_RGB = 255
+    object_color = np.array(fragment_color)
+    ambient_color = np.array([0.0, 0.0, 0.0])
+    diffuse_color = np.array([0.0, 0.0, 0.0])
+    specular_color = np.array([0.0, 0.0, 0.0])
+
+    for light in lights:
+        light_color = np.array(light.color) * light.intensity
+
+        if light.type == "ambient":
+            ambient_color = light_color
+            continue
+
+        # Getting the light, normal, eye direction and reflected light vectors.
+        l = light.view_space_direction
+        e = -1 * fragment_pos[:-1]
+        e = e / np.sqrt(np.dot(e, e))
+        r = 2 * np.dot(n, l) * n - l
+        r = r / np.sqrt(np.dot(r, r))
+
+        # Calculating the N dot L, N dot E and R dot E products.
+        n_dot_l = np.dot(n, l)
+        n_dot_e = np.dot(n, e)
+        r_dot_e = np.dot(r, e)
+
+        # Clamping the value of R dot E between 0 and 1.
+        r_dot_e = max(r_dot_e, 0)
+        r_dot_e = min(r_dot_e, 1)
+
+        # Adding to the specular intensity.
+        specular_color += light_color * (r_dot_e ** specularity)
+
+        # Adding to diffuse color depending on N dot L and N dot E.
+        if n_dot_l > 0 and n_dot_e > 0:
+            diffuse_color += light_color * n_dot_l
+        elif n_dot_l < 0 and n_dot_e < 0:
+            diffuse_color += light_color * n_dot_l * -1.0
+
+    # Calculating the final color.
+    ka, kd, ks = material
+    color = object_color * ((ka * ambient_color) + (kd * diffuse_color) + (ks * specular_color))
+    color = (round(color[0] * MAX_RGB), round(color[1] * MAX_RGB), round(color[2] * MAX_RGB))
+
+    return color
 
 
 def geometry_pass_shader(g_buffer, obj, camera, pos0, pos1, pos2, vpos0, vpos1, vpos2, n0, n1, n2, uv0,
@@ -276,7 +280,7 @@ def geometry_pass_shader(g_buffer, obj, camera, pos0, pos1, pos2, vpos0, vpos1, 
                 z = alpha * z0 + beta * z1 + gamma * z2
 
                 # Adding geometry to the geometry buffer.
-                g_buffer.set_attributes(x, y, vpos, n, color, material, obj.specularity, z)
+                g_buffer.set_attributes(x, y, vpos, n, color, material, obj.specularity, z, 1.0)
 
 
 def lighting_pass_shader(image, g_buffer, camera, lights):
@@ -292,8 +296,70 @@ def lighting_pass_shader(image, g_buffer, camera, lights):
     """
     for y in range(camera.resolution[1]):
         for x in range(camera.resolution[0]):
-            position, normal, color, material, specularity, depth = g_buffer.get_attributes(x, y)
+            position, normal, color, material, specularity, depth, _ = g_buffer.get_attributes(x, y)
 
             if depth != np.inf:
-                color = fragment_light_calc(position, lights, normal, color, material, specularity)
+                color = shade_fragment(position, lights, normal, color, material, specularity)
                 image.putpixel((x, -y), color)
+
+
+def occlusion_pass_shader(g_buffer, camera, kernel, noise, radius=0.5, bias=0.025):
+    """
+    Method to calculate the occlusion of all the fragments in the scene.
+
+    Args:
+        g_buffer(GeometryBuffer): Geometry buffer of the image being rendered.
+        camera(Camera): Camera that is viewing the scene.
+        kernel(SSAOKernel): SSAO kernel to use for sampling the scene.
+        noise(SSAONoise): SSAO noise to use for sampling the scene.
+        radius(float): Radius of the sample hemisphere. Defaults to 0.5.
+        bias(float): Bias to use when determining whether a sample point is occluded or not. Defaults to 0.025.
+
+    """
+    projection_matrix = camera.projection_matrix
+
+    for y in range(camera.resolution[1]):
+        for x in range(camera.resolution[0]):
+            position, normal, _, _, _, depth, _ = g_buffer.get_attributes(x, y)
+
+            if depth != np.inf:
+                # Getting a random basis to form the sampling hemisphere around.
+                random_vec = noise.sample(x, y)
+                tangent = random_vec - normal * np.dot(random_vec, normal)
+                bitangent = np.cross(normal, tangent)
+                tbn_matrix = [[tangent[0], bitangent[0], normal[0]],
+                              [tangent[1], bitangent[1], normal[1]],
+                              [tangent[2], bitangent[2], normal[2]]]
+
+                occlusion = 0.0
+                for sample in kernel.samples:
+                    # Getting a random sample point in view space.
+                    sample_vector = [[sample[0]], [sample[1]], [sample[2]]]
+                    sample_pos = np.matmul(tbn_matrix, sample_vector)
+                    sample_pos = np.transpose(sample_pos)[0]
+                    sample_pos = position[:-1] + sample_pos * radius
+
+                    # Projection of position to screen space to get sampling location on position texture.
+                    offset = [[sample_pos[0]], [sample_pos[1]], [sample_pos[2]], [1]]
+                    offset = np.matmul(projection_matrix, offset)
+                    offset = np.transpose(offset)[0]
+                    offset = offset / offset[3]
+                    offset = (offset + 1) / 2
+
+                    # Converting to raster space for sampling.
+                    texture_pos_x = min(offset[0] * (camera.resolution[0] - 1), camera.resolution[0] - 1)
+                    texture_pos_x = max(texture_pos_x, 0)
+                    texture_pos_y = min(offset[1] * (camera.resolution[1] - 1), camera.resolution[1] - 1)
+                    texture_pos_y = max(texture_pos_y, 0)
+
+                    # Gettting the position from the position buffer.
+                    sample_v_pos = g_buffer.get_position(int(texture_pos_x), int(texture_pos_y))
+                    sample_depth = sample_v_pos[2]
+
+                    # Occlusion accumulation based on range check.
+                    range_check = smooth_step(0.0, 1.0, radius / np.abs(position[2] - sample_depth))
+                    if sample_depth >= position[2] + bias:
+                        occlusion += range_check
+
+                occlusion = 1.0 - (occlusion / kernel.size)
+                g_buffer.set_occlusion(x, y, occlusion)

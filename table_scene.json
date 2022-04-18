@@ -41,7 +41,7 @@
       {
         "id":"plane",
         "notes":"",
-        "geometry":"plane",
+        "geometry":"plane1",
         "material":{
           "Cs":[
             0.5,

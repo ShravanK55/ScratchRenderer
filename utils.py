@@ -21,3 +21,26 @@ def triangle_area(pos0, pos1, pos2):
 
     """
     return 0.5 * ((pos0[0] * (pos1[1] - pos2[1])) + (pos1[0] * (pos2[1] - pos0[1])) + (pos2[0] * (pos0[1] - pos1[1])))
+
+
+def smooth_step(l, r, x):
+    """
+    Method to perform a smooth clamping over a 0-1 interval using Hermite interpolation.
+
+    Args:
+        l(float): Lower bound for clamping.
+        r(float): Upper bound for clamping.
+        x(float): Parameter for smooth step.
+
+    Returns:
+        (float): Clamped smooth step value.
+
+    """
+    if (x < l):
+        return 0
+
+    if (x >= r):
+        return 1
+
+    x = (x - l) / (r - l)
+    return x * x * (3 - 2 * x)
