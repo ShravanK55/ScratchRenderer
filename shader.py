@@ -73,12 +73,12 @@ def light_calc(obj, camera, lights, n, uv=None):
     return color
 
 
-def fragment_light_calc(camera, lights, n, fragment_color, material, specularity):
+def fragment_light_calc(fragment_pos, lights, n, fragment_color, material, specularity):
     """
     Method to calculate the color of a fragment from lighting (Deferred lighting pass).
 
     Args:
-        camera(Camera): Camera that is viewing the scene.
+        fragment_pos(list): Position of the fragment in view space.
         lights(list): List of lights in the scene.
         n(list): Normal vector of the fragment being shaded.
         fragment_color(list): Color of the fragment being rendered.
@@ -103,8 +103,9 @@ def fragment_light_calc(camera, lights, n, fragment_color, material, specularity
             continue
 
         # Getting the light, normal, eye direction and reflected light vectors.
-        l = light.direction
-        e = camera.direction
+        l = light.view_space_direction
+        e = -1 * fragment_pos[:-1]
+        e = e / np.sqrt(np.dot(e, e))
         r = 2 * np.dot(n, l) * n - l
         r = r / np.sqrt(np.dot(r, r))
 
@@ -200,7 +201,7 @@ def fragment_shader(image, z_buffer, obj, camera, lights, pos0, pos1, pos2, n0, 
                     z_buffer[x, y] = z
 
 
-def geometry_pass_shader(g_buffer, obj, camera, pos0, pos1, pos2, wpos0, wpos1, wpos2, n0, n1, n2, uv0,
+def geometry_pass_shader(g_buffer, obj, camera, pos0, pos1, pos2, vpos0, vpos1, vpos2, n0, n1, n2, uv0,
                          uv1, uv2):
     """
     Method implementing a geometry pass shader (First pass in deferred rendering).
@@ -212,9 +213,9 @@ def geometry_pass_shader(g_buffer, obj, camera, pos0, pos1, pos2, wpos0, wpos1, 
         pos0(list): Position of vertex 0.
         pos1(list): Position of vertex 1.
         pos2(list): Position of vertex 2.
-        wpos0(list): World space position of vertex 0.
-        wpos1(list): World space position of vertex 1.
-        wpos2(list): World space position of vertex 2.
+        vpos0(list): View space position of vertex 0.
+        vpos1(list): View space position of vertex 1.
+        vpos2(list): View space position of vertex 2.
         n0(list): Normal of vertex 0.
         n1(list): Normal of vertex 0.
         n2(list): Normal of vertex 0.
@@ -252,8 +253,8 @@ def geometry_pass_shader(g_buffer, obj, camera, pos0, pos1, pos2, wpos0, wpos1, 
             gamma = triangle_area((x, y), (x0, y0), (x1, y1)) / triangle_area((x0, y0), (x1, y1), (x2, y2))
 
             if alpha >= 0 and beta >= 0 and gamma >= 0:
-                # Barycentrically interpolating the world space position vectors.
-                wpos = alpha * wpos0 + beta * wpos1 + gamma * wpos2
+                # Barycentrically interpolating the view space position vectors.
+                vpos = alpha * vpos0 + beta * vpos1 + gamma * vpos2
 
                 # Getting the interpolated normal.
                 n = alpha * n0 + beta * n1 + gamma * n2
@@ -275,7 +276,7 @@ def geometry_pass_shader(g_buffer, obj, camera, pos0, pos1, pos2, wpos0, wpos1, 
                 z = alpha * z0 + beta * z1 + gamma * z2
 
                 # Adding geometry to the geometry buffer.
-                g_buffer.set_attributes(x, y, wpos, n, color, material, obj.specularity, z)
+                g_buffer.set_attributes(x, y, vpos, n, color, material, obj.specularity, z)
 
 
 def lighting_pass_shader(image, g_buffer, camera, lights):
@@ -294,5 +295,5 @@ def lighting_pass_shader(image, g_buffer, camera, lights):
             position, normal, color, material, specularity, depth = g_buffer.get_attributes(x, y)
 
             if depth != np.inf:
-                color = fragment_light_calc(camera, lights, normal, color, material, specularity)
+                color = fragment_light_calc(position, lights, normal, color, material, specularity)
                 image.putpixel((x, -y), color)

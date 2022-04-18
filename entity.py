@@ -147,4 +147,19 @@ class Light:
         self.intensity = intensity
         self.position = position
         self.direction = direction
+        self.view_space_direction = direction
         self.camera = None if self.type == "ambient" else Camera(position, direction, frustum_bounds, resolution)
+
+    def set_view_space_direction(self, view_matrix):
+        """
+        Method to set the view space direction for the light.
+
+        Args:
+            view_matrix(matrix): View matrix to transform the world space light direction.
+
+        """
+        direction = [[self.direction[0]], [self.direction[1]], [self.direction[2]], [0]]
+        self.view_space_direction = np.matmul(view_matrix, direction)
+        self.view_space_direction = np.transpose(self.view_space_direction[:-1])[0]
+        self.view_space_direction = self.view_space_direction / np.sqrt(
+            np.dot(self.view_space_direction, self.view_space_direction))

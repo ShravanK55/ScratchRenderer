@@ -4,7 +4,7 @@ Module implementing classes and methods related to rendering.
 
 from copy import deepcopy
 from entity import Camera, Light, Object
-from geometry import Transformation, TransformStack
+from geometry import Transformation, TransformStack, mat_inverse_transpose
 import json
 import numpy as np
 from PIL import Image
@@ -342,6 +342,10 @@ class Renderer:
 
             light = Light(light_type, light_color, light_intensity, light_position, light_direction, light_bounds,
                           light_resolution)
+
+            if light_direction is not None:
+                light.set_view_space_direction(self.camera.cam_matrix)
+
             self.lights.append(light)
 
         # Gettting the data of the objects in the scene.
@@ -398,8 +402,8 @@ class Renderer:
             # Pushing the object transformation onto the stack and getting the concatenated matrix.
             self.transform_stack.push(obj.transformation.matrix)
             mvp_matrix = self.transform_stack.top()
-            world_matrix = obj.transformation.matrix
-            normal_transform_matrix = obj.transformation.get_inverse_transpose()
+            mv_matrix = np.matmul(self.camera.cam_matrix, obj.transformation.matrix)
+            normal_transform_matrix = mat_inverse_transpose(mv_matrix)
 
             for triangle in obj.geometry:
                 v0 = triangle.v0
@@ -418,9 +422,9 @@ class Renderer:
                 uv2 = np.array(v2.uv)
 
                 # Applying vertex and normal transformations.
-                wpos0 = np.matmul(world_matrix, pos0)
-                wpos1 = np.matmul(world_matrix, pos1)
-                wpos2 = np.matmul(world_matrix, pos2)
+                vpos0 = np.matmul(mv_matrix, pos0)
+                vpos1 = np.matmul(mv_matrix, pos1)
+                vpos2 = np.matmul(mv_matrix, pos2)
                 pos0 = np.matmul(mvp_matrix, pos0)
                 pos1 = np.matmul(mvp_matrix, pos1)
                 pos2 = np.matmul(mvp_matrix, pos2)
@@ -429,9 +433,9 @@ class Renderer:
                 n2 = np.matmul(normal_transform_matrix, n2)
 
                 # Conversion to row vectors and normalization.
-                wpos0 = np.transpose(wpos0)[0]
-                wpos1 = np.transpose(wpos1)[0]
-                wpos2 = np.transpose(wpos2)[0]
+                vpos0 = np.transpose(vpos0)[0]
+                vpos1 = np.transpose(vpos1)[0]
+                vpos2 = np.transpose(vpos2)[0]
                 pos0 = np.transpose(pos0)[0]
                 pos1 = np.transpose(pos1)[0]
                 pos2 = np.transpose(pos2)[0]
@@ -459,7 +463,7 @@ class Renderer:
                                 pos2[2]])
 
                 # Passing the geometry to the first pass of the deferred fragment shader.
-                geometry_pass_shader(self.geometry_buffer, obj, self.camera, pos0, pos1, pos2, wpos0, wpos1, wpos2,
+                geometry_pass_shader(self.geometry_buffer, obj, self.camera, pos0, pos1, pos2, vpos0, vpos1, vpos2,
                                      n0, n1, n2, uv0, uv1, uv2)
 
             # Popping the object transformation off the stack.
@@ -499,9 +503,9 @@ class Renderer:
 
                 if depth != np.inf:
                     # Adding the position value color.
-                    w_pos = deepcopy(position)
-                    w_pos = w_pos / np.sqrt(np.dot(w_pos, w_pos))
-                    pos_color = (round(w_pos[0] * MAX_RGB), round(w_pos[1] * MAX_RGB), round(w_pos[2] * MAX_RGB))
+                    v_pos = deepcopy(position)
+                    v_pos = v_pos / np.sqrt(np.dot(v_pos, v_pos))
+                    pos_color = (round(v_pos[0] * MAX_RGB), round(v_pos[1] * MAX_RGB), round(v_pos[2] * MAX_RGB))
                     position_image.putpixel((x, -y), pos_color)
 
                     # Adding the normal value color.

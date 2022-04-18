@@ -2,6 +2,8 @@
 Module for implementing utility functions.
 """
 
+import numpy as np
+
 
 def triangle_area(pos0, pos1, pos2):
     """

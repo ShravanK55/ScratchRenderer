@@ -93,6 +93,70 @@ def scale_matrix(scale):
             [0,        0,        0,         1]]
 
 
+def mat_inverse(matrix):
+    """
+    Method to get the inverse of a transformation matrix.
+
+    Args:
+        matrix(matrix): Matrix to get the inverse of.
+
+    Returns:
+        (matrix): Inverse matrix.
+
+    """
+    u = [matrix[0][0], matrix[1][0], matrix[2][0]]
+    v = [matrix[0][1], matrix[1][1], matrix[2][1]]
+    n = [matrix[0][2], matrix[1][2], matrix[2][2]]
+
+    scale_x = np.sqrt(np.dot(u, u))
+    scale_y = np.sqrt(np.dot(v, v))
+    scale_z = np.sqrt(np.dot(n, n))
+
+    t = [matrix[0][3], matrix[1][3], matrix[2][3]]
+
+    u = [ui / scale_x for ui in u]
+    v = [vi / scale_y for vi in v]
+    n = [ni / scale_z for ni in n]
+
+    inverse_mat = [[1 / scale_x, 0,           0,           0],
+                   [0,           1 / scale_y, 0,           0],
+                   [0,           0,           1 / scale_z, 0],
+                   [0,           0,           0,           1]]
+
+    inverse_rot_mat = [[u[0], u[1], u[2], 0],
+                       [v[0], v[1], v[2], 0],
+                       [n[0], n[1], n[2], 0],
+                       [0,    0,    0,    1]]
+    inverse_mat = np.matmul(inverse_rot_mat, inverse_mat)
+
+    inverse_trans_mat = translation_matrix([-t[0], -t[1], -t[2]])
+    inverse_mat = np.matmul(inverse_trans_mat, inverse_mat)
+
+    return inverse_mat
+
+
+def mat_inverse_transpose(matrix, include_translation=False):
+    """
+    Method to get the inverse-transpose of a transformation matrix.
+
+    Args:
+        matrix(matrix): Matrix to get the transpose of.
+        include_translation(bool): Whether to include translation in the inverse transpose. Defaults to False.
+
+    Returns:
+        (matrix): Inverse-transpose of the transformation matrix.
+
+    """
+    inverse_mat = mat_inverse(matrix)
+
+    if not include_translation:
+        inverse_mat[0][3] = 0
+        inverse_mat[1][3] = 0
+        inverse_mat[2][3] = 0
+
+    return np.transpose(inverse_mat)
+
+
 class Transformation:
     """
     Class defining a transformation.
@@ -157,35 +221,7 @@ class Transformation:
             (matrix): Inverse of the transformation matrix.
 
         """
-        u = [self.matrix[0][0], self.matrix[1][0], self.matrix[2][0]]
-        v = [self.matrix[0][1], self.matrix[1][1], self.matrix[2][1]]
-        n = [self.matrix[0][2], self.matrix[1][2], self.matrix[2][2]]
-
-        scale_x = np.sqrt(np.dot(u, u))
-        scale_y = np.sqrt(np.dot(v, v))
-        scale_z = np.sqrt(np.dot(n, n))
-
-        t = [self.matrix[0][3], self.matrix[1][3], self.matrix[2][3]]
-
-        u = [ui / scale_x for ui in u]
-        v = [vi / scale_y for vi in v]
-        n = [ni / scale_z for ni in n]
-
-        inverse_mat = [[1 / scale_x, 0,           0,           0],
-                       [0,           1 / scale_y, 0,           0],
-                       [0,           0,           1 / scale_z, 0],
-                       [0,           0,           0,           1]]
-
-        inverse_rot_mat = [[u[0], u[1], u[2], 0],
-                           [v[0], v[1], v[2], 0],
-                           [n[0], n[1], n[2], 0],
-                           [0,    0,    0,    1]]
-        inverse_mat = np.matmul(inverse_rot_mat, inverse_mat)
-
-        inverse_trans_mat = translation_matrix([-t[0], -t[1], -t[2]])
-        inverse_mat = np.matmul(inverse_trans_mat, inverse_mat)
-
-        return inverse_mat
+        return mat_inverse(self.matrix)
 
     def get_transpose(self):
         """
@@ -208,14 +244,7 @@ class Transformation:
             (matrix): Inverse-transpose of the transformation matrix.
 
         """
-        inverse_mat = self.get_inverse()
-
-        if not include_translation:
-            inverse_mat[0][3] = 0
-            inverse_mat[1][3] = 0
-            inverse_mat[2][3] = 0
-
-        return np.transpose(inverse_mat)
+        return mat_inverse_transpose(self.matrix, include_translation)
 
 
 class TransformStack:
