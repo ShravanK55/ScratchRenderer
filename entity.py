@@ -149,6 +149,13 @@ class Light:
         self.direction = direction
         self.view_space_direction = direction
         self.camera = None if self.type == "ambient" else Camera(position, direction, frustum_bounds, resolution)
+        self.shadow_buffer = None
+
+        # Max depth is used for visualization purposes only.
+        self.max_depth = np.inf
+
+        if self.type == "directional":
+            self.shadow_buffer = np.matrix(np.ones((self.camera.resolution[0], self.camera.resolution[1])) * np.inf)
 
     def set_view_space_direction(self, view_matrix):
         """
@@ -163,3 +170,47 @@ class Light:
         self.view_space_direction = np.transpose(self.view_space_direction[:-1])[0]
         self.view_space_direction = self.view_space_direction / np.sqrt(
             np.dot(self.view_space_direction, self.view_space_direction))
+
+    def clear_shadow_buffer(self):
+        """
+        Method to clear the shadow buffer.
+        """
+        self.shadow_buffer = np.matrix(np.ones((self.camera.resolution[0], self.camera.resolution[1])) * np.inf)
+
+        # Max depth is used for visualization purposes only.
+        self.max_depth = np.NINF
+
+    def get_shadow_buffer_depth(self, x, y):
+        """
+        Method to get a depth value on the shadow buffer.
+
+        Args:
+            x(int): X position in the shadow buffer.
+            y(int): Y position in the shadow buffer.
+
+        Returns:
+            (float): Depth value from the shadow buffer.
+
+        """
+        return self.shadow_buffer[x, y]
+
+    def set_shadow_buffer(self, x, y, depth):
+        """
+        Method to set a depth value on the sahdow buffer.
+
+        Args:
+            x(int): X position in the shadow buffer.
+            y(int): Y position in the shadow buffer.
+            depth(float): Depth value.
+
+        Returns:
+            (bool): Whether the depth value was updated in the shadow buffer.
+
+        """
+        if depth < self.shadow_buffer[x, y]:
+            self.shadow_buffer[x, y] = depth
+            if depth > self.max_depth:
+                self.max_depth = depth
+            return True
+
+        return False

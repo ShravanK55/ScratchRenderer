@@ -2,6 +2,7 @@
 Module implementing shader functions.
 """
 
+from geometry import TransformStack
 import math
 import numpy as np
 from texture import get_texture_color
@@ -284,26 +285,6 @@ def geometry_pass_shader(g_buffer, obj, camera, pos0, pos1, pos2, vpos0, vpos1, 
                 g_buffer.set_attributes(x, y, vpos, n, color, material, obj.specularity, z)
 
 
-def lighting_pass_shader(image, g_buffer, camera, lights):
-    """
-    Method implementing a lighting pass shader (Second pass in deferred rendering).
-
-    Args:
-        image(Image): Image to write the pixels into.
-        g_buffer(GeometryBuffer): Geometry buffer of the image being rendered.
-        camera(Camera): Camera that is viewing the scene.
-        lights(list): List of lights in the scene.
-
-    """
-    for y in range(camera.resolution[1]):
-        for x in range(camera.resolution[0]):
-            position, normal, color, material, specularity, depth, _, occlusion_blur = g_buffer.get_attributes(x, y)
-
-            if depth != np.inf:
-                color = shade_fragment(position, lights, normal, color, material, specularity, occlusion_blur)
-                image.putpixel((x, -y), color)
-
-
 def occlusion_pass_shader(g_buffer, camera, kernel, noise, radius=0.5, bias=0.025):
     """
     Method to calculate the occlusion of all the fragments in the scene.
@@ -405,3 +386,116 @@ def occlusion_blur_shader(g_buffer, camera, noise):
 
                 occlusion_blur = result / num_accumulated
                 g_buffer.set_occlusion_blur(x, y, occlusion_blur)
+
+
+def lighting_pass_shader(image, g_buffer, camera, lights):
+    """
+    Method implementing a lighting pass shader (Second pass in deferred rendering).
+
+    Args:
+        image(Image): Image to write the pixels into.
+        g_buffer(GeometryBuffer): Geometry buffer of the image being rendered.
+        camera(Camera): Camera that is viewing the scene.
+        lights(list): List of lights in the scene.
+
+    """
+    for y in range(camera.resolution[1]):
+        for x in range(camera.resolution[0]):
+            position, normal, color, material, specularity, depth, _, occlusion_blur = g_buffer.get_attributes(x, y)
+
+            if depth != np.inf:
+                color = shade_fragment(position, lights, normal, color, material, specularity, occlusion_blur)
+                image.putpixel((x, -y), color)
+
+
+def shadow_buffer_shader(objects, lights):
+    """
+    Method to render the shadow buffer in all the lights of a scene.
+
+    Args:
+        objects(list): List of objects in the scene.
+        lights(list): List of lights in the scene.
+
+    """
+    for light in lights:
+        if light.type == "ambient":
+            continue
+
+        light.clear_shadow_buffer()
+        transform_stack = TransformStack()
+        transform_stack.push(light.camera.projection_matrix)
+        transform_stack.push(light.camera.cam_matrix)
+
+        for obj in objects:
+            # Pushing the object transformation onto the stack and getting the concatenated matrix.
+            transform_stack.push(obj.transformation.matrix)
+            mvp_matrix = transform_stack.top()
+
+            for triangle in obj.geometry:
+                v0 = triangle.v0
+                v1 = triangle.v1
+                v2 = triangle.v2
+
+                # Setting up arrays
+                pos0 = [[v0.pos[0]], [v0.pos[1]], [v0.pos[2]], [1]]
+                pos1 = [[v1.pos[0]], [v1.pos[1]], [v1.pos[2]], [1]]
+                pos2 = [[v2.pos[0]], [v2.pos[1]], [v2.pos[2]], [1]]
+
+                # Applying vertex and normal transformations.
+                pos0 = np.matmul(mvp_matrix, pos0)
+                pos1 = np.matmul(mvp_matrix, pos1)
+                pos2 = np.matmul(mvp_matrix, pos2)
+
+                # Conversion to row vectors and normalization.
+                pos0 = np.transpose(pos0)[0]
+                pos1 = np.transpose(pos1)[0]
+                pos2 = np.transpose(pos2)[0]
+
+                # Homogenizing all the vectors.
+                pos0 = pos0 / pos0[3]
+                pos1 = pos1 / pos1[3]
+                pos2 = pos2 / pos2[3]
+
+                # Converting vertices to raster space.
+                pos0 = np.array([(pos0[0] + 1) * ((light.camera.resolution[0] - 1) / 2),
+                                (pos0[1] + 1) * ((light.camera.resolution[1] - 1) / 2),
+                                pos0[2]])
+                pos1 = np.array([(pos1[0] + 1) * ((light.camera.resolution[0] - 1) / 2),
+                                (pos1[1] + 1) * ((light.camera.resolution[1] - 1) / 2),
+                                pos1[2]])
+                pos2 = np.array([(pos2[0] + 1) * ((light.camera.resolution[0] - 1) / 2),
+                                (pos2[1] + 1) * ((light.camera.resolution[1] - 1) / 2),
+                                pos2[2]])
+
+                # Getting the co-ordinates from vectors.
+                x0, y0, z0 = pos0
+                x1, y1, z1 = pos1
+                x2, y2, z2 = pos2
+
+                # Getting the bounding box of the triangle.
+                xmin = max(math.floor(min(x0, x1, x2)), 0)
+                xmax = min(math.ceil(max(x0, x1, x2)), light.camera.resolution[0])
+                ymin = max(math.floor(min(y0, y1, y2)), 0)
+                ymax = min(math.ceil(max(y0, y1, y2)), light.camera.resolution[1])
+
+                # Skip scan conversion if the area covered by the triangle is 0.
+                if triangle_area((x0, y0), (x1, y1), (x2, y2)) == 0:
+                    return
+
+                # Scan converting the triangle.
+                for y in range(ymin, ymax):
+                    for x in range(xmin, xmax):
+                        # Getting the barycentric co-ordinates of the pixel.
+                        alpha = triangle_area((x, y), (x1, y1), (x2, y2)) / triangle_area((x0, y0), (x1, y1), (x2, y2))
+                        beta = triangle_area((x, y), (x2, y2), (x0, y0)) / triangle_area((x0, y0), (x1, y1), (x2, y2))
+                        gamma = triangle_area((x, y), (x0, y0), (x1, y1)) / triangle_area((x0, y0), (x1, y1), (x2, y2))
+
+                        # Interpolating the Z value.
+                        z = alpha * z0 + beta * z1 + gamma * z2
+
+                        if alpha >= 0 and beta >= 0 and gamma >= 0:
+                            # Updating the shadow buffer value.
+                            light.set_shadow_buffer(x, y, z)
+
+            # Popping the object transformation off the stack.
+            transform_stack.pop()

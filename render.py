@@ -9,7 +9,8 @@ from geometry import Transformation, TransformStack, mat_inverse_transpose
 import json
 import numpy as np
 from PIL import Image
-from shader import geometry_pass_shader, lighting_pass_shader, occlusion_pass_shader, occlusion_blur_shader
+from shader import geometry_pass_shader, lighting_pass_shader, occlusion_pass_shader, occlusion_blur_shader, \
+    shadow_buffer_shader
 from texture import TextureManager
 
 
@@ -458,6 +459,11 @@ class Renderer:
         self.geometry_buffer.clear()
         ssao_kernel = SSAOKernel(16)
         ssao_noise = SSAONoise(4)
+        ssao_radius = 0.5
+        ssao_bias = 0.025
+
+        # Creating a shadow buffer for every light in the scene.
+        shadow_buffer_shader(self.objects, self.lights)
 
         for obj in self.objects:
             # Pushing the object transformation onto the stack and getting the concatenated matrix.
@@ -531,7 +537,7 @@ class Renderer:
             self.transform_stack.pop()
 
         # Calculating the occlusion values for ambient occlusion.
-        occlusion_pass_shader(self.geometry_buffer, self.camera, ssao_kernel, ssao_noise)
+        occlusion_pass_shader(self.geometry_buffer, self.camera, ssao_kernel, ssao_noise, ssao_radius, ssao_bias)
 
         # Blurring the occlusion buffer to remove noise.
         occlusion_blur_shader(self.geometry_buffer, self.camera, ssao_noise)
@@ -569,7 +575,7 @@ class Renderer:
 
         for y in range(self.camera.resolution[1]):
             for x in range(self.camera.resolution[0]):
-                position, normal, color, _, specularity, depth, occlusion, occlusion_blur = \
+                position, normal, color, _, specularity, depth, _, occlusion_blur = \
                     self.geometry_buffer.get_attributes(x, y)
 
                 if depth != np.inf:
@@ -604,13 +610,48 @@ class Renderer:
 
         return (position_image, normal_image, albedo_image, specular_image, depth_image, occlusion_image)
 
+    def render_shadow_buffers(self):
+        """
+        Method to render visualizations of the shadow buffers in every light.
+
+        Returns:
+            (list): A list of images containing visualizations of the shadow buffers of each light.
+
+        """
+        shadow_buffer_images = []
+
+        for light in self.lights:
+            if light.type == "ambient":
+                continue
+
+            # Creating images for the buffers.
+            depth_image = Image.new("RGB", light.camera.resolution, 0x000000)
+            MAX_RGB = 255
+            for y in range(light.camera.resolution[1]):
+                for x in range(light.camera.resolution[0]):
+                    depth_image.putpixel((x, y), (0, 0, 0))
+
+            for y in range(light.camera.resolution[1]):
+                for x in range(light.camera.resolution[0]):
+                    depth = light.get_shadow_buffer_depth(x, y)
+
+                    if depth != np.inf:
+                        # Adding the depth color.
+                        depth_val = round(depth / light.max_depth * MAX_RGB)
+                        depth_color = (depth_val, depth_val, depth_val)
+                        depth_image.putpixel((x, -y), depth_color)
+
+            shadow_buffer_images.append(depth_image)
+
+        return shadow_buffer_images
+
 
 if __name__ == "__main__":
     renderer = Renderer("table_scene.json")
     image = renderer.render()
     image.show()
 
-    RENDER_GEOMETRY_BUFFER = True
+    RENDER_GEOMETRY_BUFFER = False
     if RENDER_GEOMETRY_BUFFER:
         position_image, normal_image, albedo_image, specular_image, depth_image, occlusion_image = \
             renderer.render_geometry_buffer()
@@ -620,3 +661,9 @@ if __name__ == "__main__":
         specular_image.show()
         depth_image.show()
         occlusion_image.show()
+
+    RENDER_SHADOW_BUFFERS = True
+    if RENDER_SHADOW_BUFFERS:
+        shadow_buffer_images = renderer.render_shadow_buffers()
+        for shadow_buffer_image in shadow_buffer_images:
+            shadow_buffer_image.show()
