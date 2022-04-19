@@ -442,11 +442,17 @@ class Renderer:
             obj = Object(transformation, geometry_path, color, ka, kd, ks, kt, specularity, texture)
             self.objects.append(obj)
 
-    def render(self, cel_shade=False, halftone_shade=False, wireframe=False):
+        self.ssao_kernel = SSAOKernel(16)
+        self.ssao_noise = SSAONoise(4)
+        self.ssao_radius = 0.5
+        self.ssao_bias = 0.025
+
+    def render(self, ndc_shift=None, cel_shade=False, halftone_shade=False, wireframe=False):
         """
         Method to render the scene.
 
         Args:
+            ndc_shift(list): NDC shift to apply for anti aliasing. Defaults to None.
             cel_shade(bool): Whether to perform cel shading for the fragment. Defaults to False.
             halftone_shade(bool): Whether to perform halftone shading on the fragment. Defaults to False.
             wireframe(bool): Whether to render the scene as a wireframe. Defaults to False.
@@ -461,11 +467,13 @@ class Renderer:
             for x in range(self.camera.resolution[0]):
                 image.putpixel((x, y), (128, 128, 128))
 
+        # Clearing all buffers.
         self.geometry_buffer.clear()
-        ssao_kernel = SSAOKernel(16)
-        ssao_noise = SSAONoise(4)
-        ssao_radius = 0.5
-        ssao_bias = 0.025
+        for light in self.lights:
+            if light.type != "ambient":
+                light.clear_shadow_buffer()
+
+
 
         # Creating a shadow buffer for every light in the scene.
         if not wireframe:
@@ -524,6 +532,18 @@ class Renderer:
                 pos1 = pos1 / pos1[3]
                 pos2 = pos2 / pos2[3]
 
+                # Adding NDC shift for anti aliasing.
+                if ndc_shift is not None:
+                    pos0 = [pos0[0] + (ndc_shift[0] / (self.camera.resolution[0] - 1)),
+                            pos0[1] + (ndc_shift[0] / (self.camera.resolution[1] - 1)),
+                            pos0[2], pos0[3]]
+                    pos1 = [pos1[0] + (ndc_shift[0] / (self.camera.resolution[0] - 1)),
+                            pos1[1] + (ndc_shift[0] / (self.camera.resolution[1] - 1)),
+                            pos1[2], pos1[3]]
+                    pos2 = [pos2[0] + (ndc_shift[0] / (self.camera.resolution[0] - 1)),
+                            pos2[1] + (ndc_shift[0] / (self.camera.resolution[1] - 1)),
+                            pos2[2], pos2[3]]
+
                 # Converting vertices to raster space.
                 pos0 = np.array([(pos0[0] + 1) * ((self.camera.resolution[0] - 1) / 2),
                                 (pos0[1] + 1) * ((self.camera.resolution[1] - 1) / 2),
@@ -550,10 +570,11 @@ class Renderer:
             return image
 
         # Calculating the occlusion values for ambient occlusion.
-        occlusion_pass_shader(self.geometry_buffer, self.camera, ssao_kernel, ssao_noise, ssao_radius, ssao_bias)
+        occlusion_pass_shader(self.geometry_buffer, self.camera, self.ssao_kernel, self.ssao_noise, self.ssao_radius,
+                              self.ssao_bias)
 
         # Blurring the occlusion buffer to remove noise.
-        occlusion_blur_shader(self.geometry_buffer, self.camera, ssao_noise)
+        occlusion_blur_shader(self.geometry_buffer, self.camera, self.ssao_noise)
 
         # Calculating the lighting in the second pass of the deferred fragment shader.
         lighting_pass_shader(image, self.geometry_buffer, self.camera, self.lights, cel_shade, halftone_shade)
@@ -661,22 +682,55 @@ class Renderer:
 
 if __name__ == "__main__":
     renderer = Renderer("table_scene.json")
-    image = renderer.render(cel_shade=False, halftone_shade=False, wireframe=False)
-    image.show()
-
+    aa_shifts = [[-0.52, 0.38], [0.41, 0.56], [0.27, 0.08], [-0.17, -0.29], [0.58, -0.55], [-0.31, -0.71]]
+    aa_weights = [0.128, 0.119, 0.294, 0.249, 0.104, 0.106]
+    USE_AA = True
+    CEL_SHADE = False
+    HALFTONE_SHADE = False
+    WIREFRAME = False
+    RENDER_AA_IMAGES = False
     RENDER_GEOMETRY_BUFFER = False
-    if RENDER_GEOMETRY_BUFFER:
-        position_image, normal_image, albedo_image, specular_image, depth_image, occlusion_image = \
-            renderer.render_geometry_buffer()
-        position_image.show()
-        normal_image.show()
-        albedo_image.show()
-        specular_image.show()
-        depth_image.show()
-        occlusion_image.show()
-
     RENDER_SHADOW_BUFFERS = False
-    if RENDER_SHADOW_BUFFERS:
-        shadow_buffer_images = renderer.render_shadow_buffers()
-        for shadow_buffer_image in shadow_buffer_images:
-            shadow_buffer_image.show()
+
+    if USE_AA:
+        aa_images = []
+        for aa_shift in aa_shifts:
+            aa_image = renderer.render(ndc_shift=aa_shift, cel_shade=CEL_SHADE, halftone_shade=HALFTONE_SHADE,
+                                       wireframe=WIREFRAME)
+            aa_images.append(aa_image)
+
+            if RENDER_AA_IMAGES:
+                aa_image.show()
+
+        image = Image.new("RGB", renderer.camera.resolution, 0x000000)
+        for y in range(renderer.camera.resolution[1]):
+            for x in range(renderer.camera.resolution[0]):
+                out_color = np.array([0.0, 0.0, 0.0])
+
+                for i in range(len(aa_images)):
+                    color = np.array(aa_images[i].getpixel((x, y)))
+                    out_color += [color[0] * aa_weights[i], color[1] * aa_weights[i], color[2] * aa_weights[i]]
+
+                out_color = (round(out_color[0]), round(out_color[1]), round(out_color[2]))
+                image.putpixel((x, y), tuple(out_color))
+
+        image.show()
+
+    else:
+        image = renderer.render(cel_shade=CEL_SHADE, halftone_shade=HALFTONE_SHADE, wireframe=WIREFRAME)
+        image.show()
+
+        if RENDER_GEOMETRY_BUFFER:
+            position_image, normal_image, albedo_image, specular_image, depth_image, occlusion_image = \
+                renderer.render_geometry_buffer()
+            position_image.show()
+            normal_image.show()
+            albedo_image.show()
+            specular_image.show()
+            depth_image.show()
+            occlusion_image.show()
+
+        if RENDER_SHADOW_BUFFERS:
+            shadow_buffer_images = renderer.render_shadow_buffers()
+            for shadow_buffer_image in shadow_buffer_images:
+                shadow_buffer_image.show()

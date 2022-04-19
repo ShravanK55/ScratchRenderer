@@ -403,7 +403,9 @@ def occlusion_pass_shader(g_buffer, camera, kernel, noise, radius=0.5, bias=0.02
                     sample_depth = sample_v_pos[2]
 
                     # Occlusion accumulation based on range check.
-                    range_check = smooth_step(0.0, 1.0, radius / np.abs(position[2] - sample_depth))
+                    range_check = 1.0
+                    if np.abs(position[2] - sample_depth) != 0.0:
+                        range_check = smooth_step(0.0, 1.0, radius / np.abs(position[2] - sample_depth))
                     if sample_depth >= position[2] + bias:
                         occlusion += range_check
 
