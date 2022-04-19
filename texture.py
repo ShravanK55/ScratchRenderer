@@ -2,6 +2,7 @@
 Module that implements texture management.
 """
 
+from constants import MAX_RGB
 import math
 import numpy as np
 from PIL import Image, ImageOps
@@ -51,7 +52,6 @@ def get_texture_color(texture, uv):
         (list): Color at the given UV co-ordinate.
 
     """
-    MAX_RGB = 255
     texture_width, texture_height = texture.size
     x = min(uv[0] * (texture_width - 1), texture_width - 2)
     y = min(uv[1] * (texture_height - 1), texture_height - 2)

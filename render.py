@@ -3,6 +3,7 @@ Module implementing classes and methods related to rendering.
 """
 
 from ambient_occlusion import SSAOKernel, SSAONoise
+from constants import MAX_RGB
 from copy import deepcopy
 from entity import Camera, Light, Object
 from geometry import Transformation, TransformStack, mat_inverse_transpose
@@ -12,6 +13,7 @@ from PIL import Image
 from shader import geometry_pass_shader, lighting_pass_shader, occlusion_pass_shader, occlusion_blur_shader, \
     shadow_buffer_shader, wireframe_shader
 from texture import TextureManager
+from utils import save_image_to_ppm
 
 
 class GeometryBuffer:
@@ -597,7 +599,6 @@ class Renderer:
         specular_image = Image.new("RGB", self.camera.resolution, 0x000000)
         depth_image = Image.new("RGB", self.camera.resolution, 0x000000)
         occlusion_image = Image.new("RGB", self.camera.resolution, 0x000000)
-        MAX_RGB = 255
         for y in range(self.camera.resolution[1]):
             for x in range(self.camera.resolution[0]):
                 position_image.putpixel((x, y), (0, 0, 0))
@@ -660,7 +661,6 @@ class Renderer:
 
             # Creating images for the buffers.
             depth_image = Image.new("RGB", light.camera.resolution, 0x000000)
-            MAX_RGB = 255
             for y in range(light.camera.resolution[1]):
                 for x in range(light.camera.resolution[0]):
                     depth_image.putpixel((x, y), (0, 0, 0))
@@ -684,13 +684,15 @@ if __name__ == "__main__":
     renderer = Renderer("table_scene.json")
     aa_shifts = [[-0.52, 0.38], [0.41, 0.56], [0.27, 0.08], [-0.17, -0.29], [0.58, -0.55], [-0.31, -0.71]]
     aa_weights = [0.128, 0.119, 0.294, 0.249, 0.104, 0.106]
-    USE_AA = True
+    USE_AA = False
     CEL_SHADE = False
     HALFTONE_SHADE = False
     WIREFRAME = False
     RENDER_AA_IMAGES = False
     RENDER_GEOMETRY_BUFFER = False
     RENDER_SHADOW_BUFFERS = False
+    WRITE_TO_FILE = False
+    OUTPUT_FILE_NAME = "render.ppm"
 
     if USE_AA:
         aa_images = []
@@ -716,9 +718,15 @@ if __name__ == "__main__":
 
         image.show()
 
+        if WRITE_TO_FILE:
+            save_image_to_ppm(image, OUTPUT_FILE_NAME)
+
     else:
         image = renderer.render(cel_shade=CEL_SHADE, halftone_shade=HALFTONE_SHADE, wireframe=WIREFRAME)
         image.show()
+
+        if WRITE_TO_FILE:
+            save_image_to_ppm(image, OUTPUT_FILE_NAME)
 
         if RENDER_GEOMETRY_BUFFER:
             position_image, normal_image, albedo_image, specular_image, depth_image, occlusion_image = \

@@ -2,6 +2,7 @@
 Module implementing shader functions.
 """
 
+from constants import MAX_RGB
 from geometry import TransformStack, mat_inverse, mat_inverse_transpose
 import math
 import numpy as np
@@ -26,7 +27,6 @@ def light_calc(obj, camera, lights, n, uv=None):
         (list): Color of the fragment.
 
     """
-    MAX_RGB = 255
     object_color = np.array(obj.color)
     ambient_color = np.array([0.0, 0.0, 0.0])
     diffuse_color = np.array([0.0, 0.0, 0.0])
@@ -167,7 +167,6 @@ def shade_fragment(raster_pos, fragment_pos, camera, lights, n, fragment_color, 
         (list): Color of the fragment.
 
     """
-    MAX_RGB = 255
     object_color = np.array(fragment_color)
     ambient_color = np.array([0.0, 0.0, 0.0])
     diffuse_color = np.array([0.0, 0.0, 0.0])

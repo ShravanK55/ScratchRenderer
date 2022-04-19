@@ -2,7 +2,9 @@
 Module for implementing utility functions.
 """
 
+from constants import MAX_RGB
 import numpy as np
+import os
 
 
 def triangle_area(pos0, pos1, pos2):
@@ -44,3 +46,37 @@ def smooth_step(l, r, x):
 
     x = (x - l) / (r - l)
     return x * x * (3 - 2 * x)
+
+
+def save_image_to_ppm(image, out_file_name):
+    """
+    Method to save an image to a PPM file.
+
+    Args:
+        image(Image): Image to save.
+        out_file_name(str): Output file name.
+
+    """
+    width, height = image.size
+
+    if os.path.exists(out_file_name):
+        os.remove(out_file_name)
+
+    ppm_file = open(out_file_name, "a")
+    ppm_file.write("P3\n")
+    ppm_file.write(str(width) + " " + str(height) + "\n")
+    ppm_file.write(str(MAX_RGB) + "\n")
+    pixel_string = ""
+    for y in range(width):
+        for x in range(height):
+            coord = x, y
+            pixel = list(image.getpixel(coord))
+            if x == 0:
+                pixel_string = pixel_string + str(pixel[0]) + " " + str(pixel[1]) + " " + str(pixel[2])
+            else:
+                pixel_string = pixel_string + " " + str(pixel[0]) + " " + str(pixel[1]) + " " + str(pixel[2])
+
+        pixel_string = pixel_string + "\n"
+
+    ppm_file.write(pixel_string)
+    ppm_file.close()
