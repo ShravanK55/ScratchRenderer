@@ -144,13 +144,15 @@ def fragment_shader(image, z_buffer, obj, camera, lights, pos0, pos1, pos2, n0, 
 
 # DEFERRED RENDERING
 
-def shade_fragment(fragment_pos, lights, n, fragment_color, material, specularity, occlusion=1.0, shadow=0.0,
-                   cel_shade=False):
+def shade_fragment(raster_pos, fragment_pos, camera, lights, n, fragment_color, material, specularity, occlusion=1.0,
+                   shadow=0.0, cel_shade=False, halftone_shade=False):
     """
     Method to calculate the color of a fragment from lighting (Deferred lighting pass).
 
     Args:
+        raster_pos(list): Position of the fragment in raster space.
         fragment_pos(list): Position of the fragment in view space.
+        camera(Camera): Camera that is viewing the scene.
         lights(list): List of lights in the scene.
         n(list): Normal vector of the fragment being shaded.
         fragment_color(list): Color of the fragment being rendered.
@@ -159,6 +161,7 @@ def shade_fragment(fragment_pos, lights, n, fragment_color, material, specularit
         occlusion(float): Occlusion of the fragment being rendered. Defaults to 1.0.
         shadow(float): Amount of shadow on the fragment being rendered. Defaults to 1.0.
         cel_shade(bool): Whether to perform cel shading on the fragment. Defaults to False.
+        halftone_shade(bool): Whether to perform halftone shading on the fragment. Defaults to False.
 
     Returns:
         (list): Color of the fragment.
@@ -234,9 +237,38 @@ def shade_fragment(fragment_pos, lights, n, fragment_color, material, specularit
     ka, kd, ks = material
     color = object_color * ((ka * ambient_color) + ((kd * diffuse_color) + (ks * specular_color)) * (1.0 - shadow)) * \
         occlusion
-    color = (round(color[0] * MAX_RGB), round(color[1] * MAX_RGB), round(color[2] * MAX_RGB))
+    out_color = (round(color[0] * MAX_RGB), round(color[1] * MAX_RGB), round(color[2] * MAX_RGB))
 
-    return color
+    # Perform halftone shading.
+    if cel_shade and halftone_shade:
+        x = raster_pos[0]
+        y = raster_pos[1]
+        x /= camera.resolution[1]
+        y /= camera.resolution[1]
+        x *= 100.0
+        y *= 100.0
+        frac_x = (x % 1) - 0.5
+        frac_y = (y % 1) - 0.5
+
+        length = math.sqrt((frac_x ** 2) + (frac_y ** 2))
+        val = 0.2126 * color[0] + 0.7152 * color[1] + 0.0722 * color[2]
+        val = 0.5 if val > 0.5 else val
+        dark_color = (round(color[0] * 0.15 * MAX_RGB), round(color[1] * 0.15 * MAX_RGB),
+                      round(color[2] * 0.15 * MAX_RGB))
+        light_color = (round(color[0] * 0.7 * MAX_RGB), round(color[1] * 0.7 * MAX_RGB),
+                       round(color[2] * 0.7 * MAX_RGB))
+
+        if (not (length < math.sqrt(0.5 - val))):
+            out_color = (MAX_RGB, MAX_RGB, MAX_RGB)
+        else:
+            out_color = dark_color if val < 0.15 else light_color
+
+        if (val < 0.45):
+            return out_color
+        else:
+            return (MAX_RGB, MAX_RGB, MAX_RGB)
+
+    return out_color
 
 
 def geometry_pass_shader(g_buffer, obj, camera, pos0, pos1, pos2, vpos0, vpos1, vpos2, n0, n1, n2, uv0,
@@ -420,7 +452,7 @@ def occlusion_blur_shader(g_buffer, camera, noise):
                 g_buffer.set_occlusion_blur(x, y, occlusion_blur)
 
 
-def lighting_pass_shader(image, g_buffer, camera, lights, cel_shade=False, shadow_bias=0.005):
+def lighting_pass_shader(image, g_buffer, camera, lights, cel_shade=False, halftone_shade=False, shadow_bias=0.005):
     """
     Method implementing a lighting pass shader (Second pass in deferred rendering).
 
@@ -430,6 +462,7 @@ def lighting_pass_shader(image, g_buffer, camera, lights, cel_shade=False, shado
         camera(Camera): Camera that is viewing the scene.
         lights(list): List of lights in the scene.
         cel_shade(bool): Whether to perform cel shading for the fragment. Defaults to False.
+        halftone_shade(bool): Whether to perform halftone shading on the fragment. Defaults to False.
         shadow_bias(float): Bias to use when checking whether a fragment is in shadow. Defaults to 0.005.
 
     """
@@ -455,8 +488,8 @@ def lighting_pass_shader(image, g_buffer, camera, lights, cel_shade=False, shado
                 shadow = get_fragment_shadow(w_pos, w_normal, lights, shadow_bias)
 
                 # Calculating the final color of a fragment from lighting.
-                color = shade_fragment(position, lights, normal, color, material, specularity, occlusion_blur, shadow,
-                                       cel_shade)
+                color = shade_fragment((x, y), position, camera, lights, normal, color, material, specularity,
+                                       occlusion_blur, shadow, cel_shade, halftone_shade)
                 image.putpixel((x, -y), color)
 
 

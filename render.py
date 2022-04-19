@@ -442,12 +442,13 @@ class Renderer:
             obj = Object(transformation, geometry_path, color, ka, kd, ks, kt, specularity, texture)
             self.objects.append(obj)
 
-    def render(self, cel_shade=False, wireframe=False):
+    def render(self, cel_shade=False, halftone_shade=False, wireframe=False):
         """
         Method to render the scene.
 
         Args:
             cel_shade(bool): Whether to perform cel shading for the fragment. Defaults to False.
+            halftone_shade(bool): Whether to perform halftone shading on the fragment. Defaults to False.
             wireframe(bool): Whether to render the scene as a wireframe. Defaults to False.
 
         Returns:
@@ -555,7 +556,7 @@ class Renderer:
         occlusion_blur_shader(self.geometry_buffer, self.camera, ssao_noise)
 
         # Calculating the lighting in the second pass of the deferred fragment shader.
-        lighting_pass_shader(image, self.geometry_buffer, self.camera, self.lights, cel_shade)
+        lighting_pass_shader(image, self.geometry_buffer, self.camera, self.lights, cel_shade, halftone_shade)
 
         return image
 
@@ -660,7 +661,7 @@ class Renderer:
 
 if __name__ == "__main__":
     renderer = Renderer("table_scene.json")
-    image = renderer.render(cel_shade=False, wireframe=False)
+    image = renderer.render(cel_shade=False, halftone_shade=False, wireframe=False)
     image.show()
 
     RENDER_GEOMETRY_BUFFER = False
