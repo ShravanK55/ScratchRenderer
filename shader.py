@@ -205,8 +205,6 @@ def shade_fragment(fragment_pos, lights, n, fragment_color, material, specularit
 
             # Accumulating the diffuse and specular color.
             diffuse_color += light_color * light_scale
-
-            # Adding to the specular intensity.
             specular_color += light_color * ((n_dot_h * light_scale) ** specularity)
             continue
 
@@ -589,7 +587,7 @@ def get_fragment_shadow(w_pos, w_normal, lights, bias=0.005):
         l_norm = np.matmul(light.camera.cam_matrix, w_normal)
         l_norm = l_norm / np.sqrt(np.dot(l_norm, l_norm))
         l_dir = -lv_pos / np.sqrt(np.dot(lv_pos, lv_pos))
-        shadow_bias = max(0.05 * (1.0 - np.dot(l_norm, l_dir)), bias);
+        shadow_bias = max(0.05 * (1.0 - np.dot(l_norm, l_dir)), bias)
 
         # Homogenizing all the position vector.
         l_pos = l_pos / l_pos[3]
@@ -611,3 +609,58 @@ def get_fragment_shadow(w_pos, w_normal, lights, bias=0.005):
         return shadow
 
     return shadow / num_directional_lights
+
+
+def wireframe_shader(image, camera, pos0, pos1, pos2, color=None):
+    """
+    Method implementing a wireframe shader.
+
+    Args:
+        image(Image): Image to write the pixels into.
+        camera(Camera): Camera that is viewing the scene.
+        pos0(list): Raster space position of vertex 0.
+        pos1(list): Raster space position of vertex 1.
+        pos2(list): Raster space position of vertex 2.
+        color(list): Color to use for drawing the wireframe lines. Defaults to None.
+
+    """
+    # Getting the co-ordinates from vectors.
+    x0, y0, z0 = pos0
+    x1, y1, z1 = pos1
+    x2, y2, z2 = pos2
+
+    line_color = color if color is not None else (0, 0, 0)
+
+    steep = False
+    # Swap x and y for slope > 45.
+    if abs(x1 - x2) < abs(y1 - y2) :
+        x1, y1 = y1, x1
+        x2, y2 = y2, x2
+        steep = True
+
+    # Step from smaller x to bigger x.
+    if x1 > x2:
+        x1, x2 = x2, x1
+        y1, y2 = y2, y1
+
+    dx = x2 - x1
+    dy = y2 - y1
+
+    derr = abs(2 * dy)
+    derr2 = 0
+
+    x = math.floor(x1)
+    y = math.floor(y1)
+
+    # Bressenham's algorithm for line rendering.
+    while x <= math.floor(x2) and x < camera.resolution[0] - 1 and y < camera.resolution[1] - 1:
+        if (steep):
+            image.putpixel((y, -x), line_color)
+        else:
+            image.putpixel((x, -y), line_color)
+
+        derr2 += derr
+        if derr2 > dx:
+            y += 1 if y2 > y1 else -1
+            derr2 -= dx * 2
+        x += 1

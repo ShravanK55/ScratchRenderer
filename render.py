@@ -10,7 +10,7 @@ import json
 import numpy as np
 from PIL import Image
 from shader import geometry_pass_shader, lighting_pass_shader, occlusion_pass_shader, occlusion_blur_shader, \
-    shadow_buffer_shader
+    shadow_buffer_shader, wireframe_shader
 from texture import TextureManager
 
 
@@ -442,12 +442,13 @@ class Renderer:
             obj = Object(transformation, geometry_path, color, ka, kd, ks, kt, specularity, texture)
             self.objects.append(obj)
 
-    def render(self, cel_shade=False):
+    def render(self, cel_shade=False, wireframe=False):
         """
         Method to render the scene.
 
         Args:
             cel_shade(bool): Whether to perform cel shading for the fragment. Defaults to False.
+            wireframe(bool): Whether to render the scene as a wireframe. Defaults to False.
 
         Returns:
             (Image): Image of the rendered scene.
@@ -466,7 +467,8 @@ class Renderer:
         ssao_bias = 0.025
 
         # Creating a shadow buffer for every light in the scene.
-        shadow_buffer_shader(self.objects, self.lights)
+        if not wireframe:
+            shadow_buffer_shader(self.objects, self.lights)
 
         for obj in self.objects:
             # Pushing the object transformation onto the stack and getting the concatenated matrix.
@@ -532,12 +534,19 @@ class Renderer:
                                 (pos2[1] + 1) * ((self.camera.resolution[1] - 1) / 2),
                                 pos2[2]])
 
+                if wireframe:
+                    wireframe_shader(image, self.camera, pos0, pos1, pos2)
+                    continue
+
                 # Passing the geometry to the first pass of the deferred fragment shader.
                 geometry_pass_shader(self.geometry_buffer, obj, self.camera, pos0, pos1, pos2, vpos0, vpos1, vpos2,
                                      n0, n1, n2, uv0, uv1, uv2)
 
             # Popping the object transformation off the stack.
             self.transform_stack.pop()
+
+        if wireframe:
+            return image
 
         # Calculating the occlusion values for ambient occlusion.
         occlusion_pass_shader(self.geometry_buffer, self.camera, ssao_kernel, ssao_noise, ssao_radius, ssao_bias)
@@ -651,7 +660,7 @@ class Renderer:
 
 if __name__ == "__main__":
     renderer = Renderer("table_scene.json")
-    image = renderer.render(cel_shade=False)
+    image = renderer.render(cel_shade=False, wireframe=False)
     image.show()
 
     RENDER_GEOMETRY_BUFFER = False
