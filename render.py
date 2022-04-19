@@ -598,6 +598,7 @@ class Renderer:
         albedo_image = Image.new("RGB", self.camera.resolution, 0x000000)
         specular_image = Image.new("RGB", self.camera.resolution, 0x000000)
         depth_image = Image.new("RGB", self.camera.resolution, 0x000000)
+        occlusion_noise_image = Image.new("RGB", self.camera.resolution, 0x000000)
         occlusion_image = Image.new("RGB", self.camera.resolution, 0x000000)
         for y in range(self.camera.resolution[1]):
             for x in range(self.camera.resolution[0]):
@@ -606,11 +607,12 @@ class Renderer:
                 albedo_image.putpixel((x, y), (0, 0, 0))
                 specular_image.putpixel((x, y), (0, 0, 0))
                 depth_image.putpixel((x, y), (0, 0, 0))
+                occlusion_noise_image.putpixel((x, y), (0, 0, 0))
                 occlusion_image.putpixel((x, y), (0, 0, 0))
 
         for y in range(self.camera.resolution[1]):
             for x in range(self.camera.resolution[0]):
-                position, normal, color, _, specularity, depth, _, occlusion_blur = \
+                position, normal, color, _, specularity, depth, occlusion, occlusion_blur = \
                     self.geometry_buffer.get_attributes(x, y)
 
                 if depth != np.inf:
@@ -639,11 +641,17 @@ class Renderer:
                     depth_image.putpixel((x, -y), depth_color)
 
                     # Adding the occlusion color.
+                    occlusion_noise_val = round(occlusion * MAX_RGB)
+                    occlusion_noise_color = (occlusion_noise_val, occlusion_noise_val, occlusion_noise_val)
+                    occlusion_noise_image.putpixel((x, -y), occlusion_noise_color)
+
+                    # Adding the occlusion color.
                     occlusion_val = round(occlusion_blur * MAX_RGB)
                     occlusion_color = (occlusion_val, occlusion_val, occlusion_val)
                     occlusion_image.putpixel((x, -y), occlusion_color)
 
-        return (position_image, normal_image, albedo_image, specular_image, depth_image, occlusion_image)
+        return (position_image, normal_image, albedo_image, specular_image, depth_image, occlusion_noise_image,
+                occlusion_image)
 
     def render_shadow_buffers(self):
         """
@@ -692,7 +700,16 @@ if __name__ == "__main__":
     RENDER_GEOMETRY_BUFFER = False
     RENDER_SHADOW_BUFFERS = False
     WRITE_TO_FILE = False
+    WRITE_BUFFERS_TO_FILE = False
     OUTPUT_FILE_NAME = "render.ppm"
+    POSITION_FILE_NAME = "position.ppm"
+    NORMAL_FILE_NAME = "normal.ppm"
+    ALBEDO_FILE_NAME = "albedo.ppm"
+    SPECULAR_FILE_NAME = "specular.ppm"
+    DEPTH_FILE_NAME = "depth.ppm"
+    OCCLUSION_NOISE_FILE_NAME = "occlusion_noise.ppm"
+    OCCLUSION_FILE_NAME = "occlusion.ppm"
+    SHADOW_BUFFER_FILE_NAME = "shadow{}.ppm"
 
     if USE_AA:
         aa_images = []
@@ -729,16 +746,32 @@ if __name__ == "__main__":
             save_image_to_ppm(image, OUTPUT_FILE_NAME)
 
         if RENDER_GEOMETRY_BUFFER:
-            position_image, normal_image, albedo_image, specular_image, depth_image, occlusion_image = \
-                renderer.render_geometry_buffer()
+            position_image, normal_image, albedo_image, specular_image, depth_image, occlusion_noise_image, \
+                occlusion_image = renderer.render_geometry_buffer()
             position_image.show()
             normal_image.show()
             albedo_image.show()
             specular_image.show()
             depth_image.show()
+            occlusion_noise_image.show()
             occlusion_image.show()
+
+            if WRITE_BUFFERS_TO_FILE:
+                save_image_to_ppm(position_image, POSITION_FILE_NAME)
+                save_image_to_ppm(normal_image, NORMAL_FILE_NAME)
+                save_image_to_ppm(albedo_image, ALBEDO_FILE_NAME)
+                save_image_to_ppm(specular_image, SPECULAR_FILE_NAME)
+                save_image_to_ppm(depth_image, DEPTH_FILE_NAME)
+                save_image_to_ppm(occlusion_noise_image, OCCLUSION_NOISE_FILE_NAME)
+                save_image_to_ppm(occlusion_image, OCCLUSION_FILE_NAME)
 
         if RENDER_SHADOW_BUFFERS:
             shadow_buffer_images = renderer.render_shadow_buffers()
+            shadow_buffer_idx = 0
             for shadow_buffer_image in shadow_buffer_images:
                 shadow_buffer_image.show()
+
+                if WRITE_BUFFERS_TO_FILE:
+                    save_image_to_ppm(shadow_buffer_image, SHADOW_BUFFER_FILE_NAME.format(shadow_buffer_idx))
+
+                shadow_buffer_idx += 1
