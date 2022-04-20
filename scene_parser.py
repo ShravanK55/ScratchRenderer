@@ -6,7 +6,7 @@ from PIL import Image, ImageOps
 import json
 from shadow_renderer import *
 from plane_renderer import *
-from toon_shading import *
+from toon_Line_renderer import *
 from wireframe_renderer import *
 
 # Functions
@@ -523,10 +523,17 @@ renderPlane(im, xres, yres, zbuffer, camera_matrix, perspective_matrix)
 
 with open("plane.json") as json_file:
     plane_data = json.load(json_file)
+<<<<<<< Updated upstream
 renderShadow(im, plane_data, xres, yres, camera_matrix, perspective_matrix, light_matrix,
                    light_perspective_matrix, shadow_buffer, zbuffer)
 renderToonShade(camera_data, triangle_data, material_data, xres, yres, rotation_matrix, scale_matrix, translate_matrix, scale_matrix_inverse_transpose, camera_matrix, perspective_matrix, light_data)
 renderWireframe(triangle_data, xres, yres, rotation_matrix, scale_matrix, translate_matrix, scale_matrix_inverse_transpose, camera_matrix, perspective_matrix)
+=======
+renderShadow(im, plane_data, xres, yres, plane_mvp_matrix, plane_light_mvp_matrix, shadow_buffer, zbuffer, la, la_intensity, Ka)
+renderToonLine(camera_data, triangle_data, material_data, xres, yres, rotation_matrix, scale_matrix, translate_matrix, mvp_matrix, normal_transformation_matrix, light_data)
+renderWireframe(triangle_data, xres, yres, mvp_matrix, normal_transformation_matrix)
+renderHalftone(camera_data, triangle_data, material_data, xres, yres, rotation_matrix, scale_matrix, translate_matrix, scale_matrix_inverse_transpose, camera_matrix, perspective_matrix, light_data)
+>>>>>>> Stashed changes
 
 
 im.show()

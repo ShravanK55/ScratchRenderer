@@ -1,6 +1,8 @@
 import math
 import os
 import numpy as np
+from perlin_noise import PerlinNoise
+import random
 
 from PIL import Image, ImageOps
 
@@ -98,13 +100,74 @@ def toonShading(camera,material, vert1, vert2, vert3, lights, N):
     return rgb
 
 
+<<<<<<< Updated upstream:toon_shading.py
 
 def renderGeom(camera, triangle_data, material_data, xres, yres, rotation_matrix, scale_matrix, translate_matrix, scale_matrix_inverse_transpose, camera_matrix, perspective_matrix, light_data):
 
+=======
+def backface(camera, v0_array, v1_array, v2_array, rotation_matrix, scale_matrix, translate_matrix):
+    v0=np.array(v0_array)
+    v1=np.array(v1_array)
+    v2=np.array(v2_array)
+    
+    normal = [0,0,0]
+    vec1=[0,0,0]
+    vec2=[0,0,0]
+    viewVec=[0,0,0]
+
+    camObj = [[camera["from"][0]],[camera["from"][1]],[camera["from"][2]],[1]]
+
+    # Concatenated Object to World Transformation Matrix
+    objToWorld_matrix = [[1, 0, 0, 0],
+                        [0, 1, 0, 0],
+                        [0, 0, 1, 0],
+                        [0, 0, 0, 1]]
+    objToWorld_matrix = np.matmul(rotation_matrix, objToWorld_matrix)
+    objToWorld_matrix = np.matmul(scale_matrix, objToWorld_matrix)
+    objToWorld_matrix = np.matmul(translate_matrix, objToWorld_matrix)
+
+    #Inverse to get world to object Transformation Matrix
+    worldToObj_matrix = np.linalg.inv(objToWorld_matrix)
+    
+    #Transform Camera from World to object space
+    camObj = np.matmul(objToWorld_matrix, camObj)
+    cam = np.array(camObj)
+    #viewVec = matrixVecMul(worldToObj_matrix, camera["from"])
+    
+    for i in range(3):
+        vec1[i] = (v1[i][0] - v0[i][0]).item()
+        vec2[i] = (v2[i][0] - v0[i][0]).item()
+        viewVec[i] = (v0_array[i][0] - cam[i][0]).item()
+    
+
+    vec1 = vec1 / np.linalg.norm(vec1)
+    vec2 = vec2 / np.linalg.norm(vec2)
+    
+    normal = np.cross(vec1, vec2)
+    normal = normal / np.linalg.norm(normal)
+    
+    viewVec = viewVec / np.linalg.norm(viewVec)
+    
+    
+    NdotE = np.dot(normal,viewVec)
+    
+    if(NdotE>(0.015)):
+        return True
+    
+    return False
+
+
+def renderGeom(camera, triangle_data, material_data, xres, yres,rotation_matrix, scale_matrix, translate_matrix, mvp_matrix, normal_transformation_matrix, light_data):
+    
+>>>>>>> Stashed changes:toon_Line_renderer.py
     #set background color
     for x in range(width):
         for y in range(height):
-            im.putpixel( (x,y),(255, 255, 255))
+            imT.putpixel( (x,y),(255, 255, 255))
+            imL.putpixel( (x,y),(255, 255, 255))
+
+    #random starting point for perlin noise
+    noi=random.uniform(0,1)
 
    # Getting triangle data
     for triangle in triangle_data.get('data'):
@@ -132,17 +195,6 @@ def renderGeom(camera, triangle_data, material_data, xres, yres, rotation_matrix
         ny2 = triangle.get('v2').get('n')[1]
         nz2 = triangle.get('v2').get('n')[2]
 
-        if(outline==True):
-            # Getting normals
-            x0 += nx0 * outlineSize
-            y0 += ny0 * outlineSize
-            z0 += nz0 * outlineSize
-            x1 += nx1 * outlineSize
-            y1 += ny1 * outlineSize
-            z1 += nz1 * outlineSize
-            x2 += nx2 * outlineSize
-            y2 += ny2 * outlineSize
-            z2 += nz2 * outlineSize
 
         # Getting texture coords
         u0 = triangle.get('v0').get('t')[0]
@@ -153,6 +205,7 @@ def renderGeom(camera, triangle_data, material_data, xres, yres, rotation_matrix
 
         u2 = triangle.get('v2').get('t')[0]
         v2 = triangle.get('v2').get('t')[1]
+        
 
         # Setting up arrays
         v0_array = [[x0], [y0], [z0], [1]]
@@ -162,8 +215,39 @@ def renderGeom(camera, triangle_data, material_data, xres, yres, rotation_matrix
         n1_array = [[nx1], [ny1], [nz1], [1]]
         n2_array = [[nx2], [ny2], [nz2], [1]]
 
+<<<<<<< Updated upstream:toon_shading.py
         # Applying transformations 0 -> W
 
+=======
+
+        #check if triangle is a backface
+        backFace = backface(camera,v0_array,v1_array,v2_array, rotation_matrix, scale_matrix, translate_matrix,)
+
+        #if traingle is a backFace, move the vertice in their normal direction as per the outline size
+        if(backFace):
+            #decide outline thickness using perlin noise
+            outlineSize = -noise(noi)
+            noi+=0.001 
+            outlineSize = 0.04 + (0.1 - 0.04) * (outlineSize)
+
+            #normalize normals
+            n0_a = np.array(n0_array)
+            n0_a = n0_a / np.linalg.norm(n0_a)
+
+            n1_a = np.array(n1_array)
+            n1_a = n1_a / np.linalg.norm(n1_a)
+
+            n2_a = np.array(n2_array)
+            n2_a = n2_a / np.linalg.norm(n2_a)
+
+            #move vertices
+            for i in range(3):
+                v0_array[i][0] += n0_a[i][0] * outlineSize
+                v1_array[i][0] += n1_a[i][0] * outlineSize
+                v2_array[i][0] += n2_a[i][0] * outlineSize
+
+        # Applying transformations 0 -> NDC
+>>>>>>> Stashed changes:toon_Line_renderer.py
         # Vertex transformations
 
         v0_array = np.matmul(rotation_matrix, v0_array)
@@ -266,41 +350,73 @@ def renderGeom(camera, triangle_data, material_data, xres, yres, rotation_matrix
                             # Phong Shading - interpolating normal
                             pixel_N[i] = (alpha * n0_array[i] + beta * n1_array[i] + gamma * n2_array[i]).item()
 
-                        if(outline==False):
+                        #if(outline==False):
+                        if(backFace):
+                            #Line Art
+                            imL.putpixel((x, -y),(0,0,0))
+                            #toon Shade outline
+                            imT.putpixel((x, -y),(0,0,0))
+                            
+                        else:
+                            #Line Art
+                            imL.putpixel((x, -y),(255,255,255))
+
                             # Toon Shading
                             cp_t = toonShading(camera, material_data, [x0,y0,z0], [x1,y1,z1],[x2,y2,z2], light_data, [[pixel_N[0]], [pixel_N[1]], [pixel_N[2]], [1]])
-                            stencilBuffer[x][y]= cp_t
-                        elif(outline==True):
-                            cp_t =[0,0,0]
-                            if(stencilBuffer[x][y]==[-1,-1,-1]):
-                                im.putpixel( (x,-y), (0,0,0))
-                            else:
-                                cp_t = stencilBuffer[x][y]
-                                #imP.putpixel( (x,y), (int(rgb[0]), int(rgb[1]), int(rgb[2])))
-                                # toon shade
-                                im.putpixel((x, -y),
+                            #stencilBuffer[x][y]= cp_t
+                            imT.putpixel((x, -y),
                                     (round(np.nan_to_num(cp_t[0])), round(np.nan_to_num(cp_t[1])),
                                     round(np.nan_to_num(cp_t[2]))))
+
+                        ## silhouette outline using 2-pass stencil buffer ##
+                        #elif(outline==True):
+                         #   cp_t =[0,0,0]
+                          #  if(stencilBuffer[x][y]==[-1,-1,-1]):
+                                #im.putpixel( (x,-y), (0,0,0))
+                           # else:
+                            #    cp_t = stencilBuffer[x][y]
+                                # toon shade
+                             #   im.putpixel((x, -y),
+                              #      (round(np.nan_to_num(cp_t[0])), round(np.nan_to_num(cp_t[1])),
+                               #     round(np.nan_to_num(cp_t[2]))))
                         zbuffer[x, y] = z
 
 
 
+<<<<<<< Updated upstream:toon_shading.py
 def renderToonShade(camera, triangle_data, material_data, xres, yres, rotation_matrix, scale_matrix, translate_matrix, scale_matrix_inverse_transpose, camera_matrix, perspective_matrix, light_data):
     print("===================\nToon Shading Begin\n")
+=======
+def renderToonLine(camera, triangle_data, material_data, xres, yres,rotation_matrix, scale_matrix, translate_matrix, mvp_matrix, normal_transformation_matrix, light_data):
+    print("===================\nToon Shading and Line Art Begin\n")
+>>>>>>> Stashed changes:toon_Line_renderer.py
 
-    global im, width, height, zbuffer, stencilBuffer
-    im = Image.new('RGB', [xres, yres], 0x000000)
-    width, height = im.size
+    global imT, imL, width, height, zbuffer, stencilBuffer
+    imT = Image.new('RGB', [xres, yres], 0x000000)
+    imL = Image.new('RGB', [xres, yres], 0x000000)
+    width, height = imT.size
     zbuffer = np.matrix(np.ones((xres, yres)) * np.inf)
-    stencilBuffer = [ [[-1,-1,-1]]*width for i in range(height)]
 
-    global outline, outlineSize
-    outline = False
-    outlineSize=0.05
+    global noise
+    noise = PerlinNoise()
 
+    ## object silhouette outline using 2-pass stencil buffer ##
+    #stencilBuffer = [ [[-1,-1,-1]]*width for i in range(height)]
+
+    #global outline, outlineSize
+    #outline = False
+    #outlineSize=0.05
+
+<<<<<<< Updated upstream:toon_shading.py
     for i in range(2):
         renderGeom(camera, triangle_data, material_data, xres, yres, rotation_matrix, scale_matrix, translate_matrix, scale_matrix_inverse_transpose, camera_matrix, perspective_matrix, light_data)
         outline=True   
+=======
+    #for i in range(2):
+    renderGeom(camera, triangle_data, material_data, xres, yres,rotation_matrix, scale_matrix, translate_matrix, mvp_matrix, normal_transformation_matrix, light_data)
+        #outline=True
+>>>>>>> Stashed changes:toon_Line_renderer.py
 
-    im.show()
-    print("Toon Shading Successful\n===================\n")
+    imT.show()
+    imL.show()
+    print("Toon Shading and Line Art Successful\n===================\n")

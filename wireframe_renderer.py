@@ -182,4 +182,4 @@ def renderWireframe(triangle_data, xres, yres, rotation_matrix, scale_matrix, tr
     renderGeom(triangle_data, xres, yres, rotation_matrix, scale_matrix, translate_matrix, scale_matrix_inverse_transpose, camera_matrix, perspective_matrix) 
 
     im.show()
-    print("Toon Shading Successful\n===================\n")
+    print("Wireframe Render Successful\n===================\n")
