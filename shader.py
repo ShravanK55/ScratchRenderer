@@ -145,7 +145,7 @@ def fragment_shader(image, z_buffer, obj, camera, lights, pos0, pos1, pos2, n0, 
 # DEFERRED RENDERING
 
 def shade_fragment(raster_pos, fragment_pos, camera, lights, n, fragment_color, material, specularity, occlusion=1.0,
-                   shadow=0.0, cel_shade=False, halftone_shade=False):
+                   stencil=1, shadow=0.0, cel_shade=False, halftone_shade=False, line_art=False):
     """
     Method to calculate the color of a fragment from lighting (Deferred lighting pass).
 
@@ -159,14 +159,22 @@ def shade_fragment(raster_pos, fragment_pos, camera, lights, n, fragment_color, 
         material(list): Material of the fragment being rendered.
         specularity(float): Specularity of the fragment being rendered.
         occlusion(float): Occlusion of the fragment being rendered. Defaults to 1.0.
+        stencil(float): Stencil buffer value of the fragment being rendered. Defaults to 1.
         shadow(float): Amount of shadow on the fragment being rendered. Defaults to 1.0.
         cel_shade(bool): Whether to perform cel shading on the fragment. Defaults to False.
         halftone_shade(bool): Whether to perform halftone shading on the fragment. Defaults to False.
+        line_art(bool): Whether to draw line art. Defaults to False.
 
     Returns:
         (list): Color of the fragment.
 
     """
+    if line_art and not cel_shade:
+        if stencil == 1:
+            return (MAX_RGB, MAX_RGB, MAX_RGB)
+        else:
+            return (0, 0, 0)
+
     object_color = np.array(fragment_color)
     ambient_color = np.array([0.0, 0.0, 0.0])
     diffuse_color = np.array([0.0, 0.0, 0.0])
@@ -245,8 +253,9 @@ def shade_fragment(raster_pos, fragment_pos, camera, lights, n, fragment_color, 
 
     # Calculating the final color.
     ka, kd, ks = material
+    outline = 0.0 if line_art and stencil == 0 else 1.0
     color = object_color * ((ka * ambient_color) + ((kd * diffuse_color) + (ks * specular_color)) * (1.0 - shadow)) * \
-        occlusion
+        occlusion * outline
     out_color = (round(color[0] * MAX_RGB), round(color[1] * MAX_RGB), round(color[2] * MAX_RGB))
 
     # Perform halftone shading.
@@ -283,7 +292,7 @@ def shade_fragment(raster_pos, fragment_pos, camera, lights, n, fragment_color, 
 
 
 def geometry_pass_shader(g_buffer, obj, camera, pos0, pos1, pos2, vpos0, vpos1, vpos2, n0, n1, n2, uv0,
-                         uv1, uv2):
+                         uv1, uv2, line_art=False, is_backface=False):
     """
     Method implementing a geometry pass shader (First pass in deferred rendering).
 
@@ -303,6 +312,8 @@ def geometry_pass_shader(g_buffer, obj, camera, pos0, pos1, pos2, vpos0, vpos1, 
         uv0(list): UV of vertex 0.
         uv1(list): UV of vertex 1.
         uv2(list): UV of vertex 2.
+        line_art(bool): Whether to draw line art of the object. Defaults to False.
+        is_backface(bool): Whether the surface being drawn is a backface. Defaults to False.
 
     """
     # Getting the co-ordinates from vectors.
@@ -356,8 +367,11 @@ def geometry_pass_shader(g_buffer, obj, camera, pos0, pos1, pos2, vpos0, vpos1, 
                 # Interpolating the Z value.
                 z = alpha * z0 + beta * z1 + gamma * z2
 
+                # Setting the stencil buffer value.
+                stencil_value = 0 if line_art and is_backface else 1
+
                 # Adding geometry to the geometry buffer.
-                g_buffer.set_attributes(x, y, vpos, n, color, material, obj.specularity, z)
+                g_buffer.set_attributes(x, y, vpos, n, color, material, obj.specularity, z, stencil_value)
 
 
 def occlusion_pass_shader(g_buffer, camera, kernel, noise, radius=0.5, bias=0.025):
@@ -377,7 +391,7 @@ def occlusion_pass_shader(g_buffer, camera, kernel, noise, radius=0.5, bias=0.02
 
     for y in range(camera.resolution[1]):
         for x in range(camera.resolution[0]):
-            position, normal, _, _, _, depth, _, _ = g_buffer.get_attributes(x, y)
+            position, normal, _, _, _, depth, _, _, _ = g_buffer.get_attributes(x, y)
 
             if depth != np.inf:
                 # Getting a random basis to form the sampling hemisphere around.
@@ -437,7 +451,7 @@ def occlusion_blur_shader(g_buffer, camera, noise):
     tile_size = noise.tile_size
     for y in range(camera.resolution[1]):
         for x in range(camera.resolution[0]):
-            _, _, _, _, _, depth, _, _ = g_buffer.get_attributes(x, y)
+            _, _, _, _, _, depth, _, _, _ = g_buffer.get_attributes(x, y)
 
             if depth != np.inf:
                 result = 0.0
@@ -455,7 +469,7 @@ def occlusion_blur_shader(g_buffer, camera, noise):
                         offset_y = min(offset_y, camera.resolution[1] - 1)
                         offset_y = max(offset_y, 0)
 
-                        _, _, _, _, _, offset_depth, occlusion, _ = g_buffer.get_attributes(offset_x, offset_y)
+                        _, _, _, _, _, offset_depth, occlusion, _, _ = g_buffer.get_attributes(offset_x, offset_y)
 
                         if offset_depth != np.inf:
                             result += occlusion
@@ -465,7 +479,8 @@ def occlusion_blur_shader(g_buffer, camera, noise):
                 g_buffer.set_occlusion_blur(x, y, occlusion_blur)
 
 
-def lighting_pass_shader(image, g_buffer, camera, lights, cel_shade=False, halftone_shade=False, shadow_bias=0.005):
+def lighting_pass_shader(image, g_buffer, camera, lights, cel_shade=False, halftone_shade=False, line_art=False,
+                         shadow_bias=0.005):
     """
     Method implementing a lighting pass shader (Second pass in deferred rendering).
 
@@ -476,6 +491,7 @@ def lighting_pass_shader(image, g_buffer, camera, lights, cel_shade=False, halft
         lights(list): List of lights in the scene.
         cel_shade(bool): Whether to perform cel shading for the fragment. Defaults to False.
         halftone_shade(bool): Whether to perform halftone shading on the fragment. Defaults to False.
+        line_art(bool): Whether to draw line art. Defaults to False.
         shadow_bias(float): Bias to use when checking whether a fragment is in shadow. Defaults to 0.005.
 
     """
@@ -487,7 +503,8 @@ def lighting_pass_shader(image, g_buffer, camera, lights, cel_shade=False, halft
 
     for y in range(camera.resolution[1]):
         for x in range(camera.resolution[0]):
-            position, normal, color, material, specularity, depth, _, occlusion_blur = g_buffer.get_attributes(x, y)
+            position, normal, color, material, specularity, depth, _, occlusion_blur, stencil = \
+                g_buffer.get_attributes(x, y)
 
             if depth != np.inf:
                 n = [normal[0], normal[1], normal[2], 0]
@@ -502,7 +519,7 @@ def lighting_pass_shader(image, g_buffer, camera, lights, cel_shade=False, halft
 
                 # Calculating the final color of a fragment from lighting.
                 color = shade_fragment((x, y), position, camera, lights, normal, color, material, specularity,
-                                       occlusion_blur, shadow, cel_shade, halftone_shade)
+                                       occlusion_blur, stencil, shadow, cel_shade, halftone_shade, line_art)
                 image.putpixel((x, -y), color)
 
 

@@ -9,11 +9,12 @@ from entity import Camera, Light, Object
 from geometry import Transformation, TransformStack, mat_inverse_transpose
 import json
 import numpy as np
+from perlin_noise import PerlinNoise
 from PIL import Image
 from shader import geometry_pass_shader, lighting_pass_shader, occlusion_pass_shader, occlusion_blur_shader, \
     shadow_buffer_shader, wireframe_shader
 from texture import TextureManager
-from utils import save_image_to_ppm
+from utils import is_backface, save_image_to_ppm
 
 
 class GeometryBuffer:
@@ -38,6 +39,7 @@ class GeometryBuffer:
         self.depth_buffer = np.matrix(np.ones((self.resolution[0], self.resolution[1])) * np.inf)
         self.occlusion_buffer = np.matrix(np.ones((self.resolution[0], self.resolution[1])))
         self.occlusion_blur_buffer = np.matrix(np.ones((self.resolution[0], self.resolution[1])))
+        self.stencil_buffer = np.matrix(np.ones((self.resolution[0], self.resolution[1])))
 
         # Max depth and specularity are used for visualization purposes only.
         self.max_specularity = np.NINF
@@ -55,6 +57,7 @@ class GeometryBuffer:
         self.depth_buffer = np.matrix(np.ones((self.resolution[0], self.resolution[1])) * np.inf)
         self.occlusion_buffer = np.matrix(np.ones((self.resolution[0], self.resolution[1])))
         self.occlusion_blur_buffer = np.matrix(np.ones((self.resolution[0], self.resolution[1])))
+        self.stencil_buffer = np.matrix(np.ones((self.resolution[0], self.resolution[1])))
 
         # Max depth and specularity are used for visualization purposes only.
         self.max_specularity = np.NINF
@@ -70,15 +73,15 @@ class GeometryBuffer:
 
         Returns:
             (tuple): Tuple containing a position vector, normal vector, color vector, material vector, specular value,
-                depth value, occlusion value and an occlusion blur value from the geometry buffer.
+                depth value, occlusion value, occlusion blur value and a stencil value from the geometry buffer.
 
         """
         return (self.get_position(x, y), self.get_normal(x, y), self.get_color(x, y), self.get_material(x, y),
                 self.get_specularity(x, y), self.get_depth(x, y), self.get_occlusion(x, y),
-                self.get_occlusion_blur(x, y))
+                self.get_occlusion_blur(x, y), self.get_stencil(x, y))
 
     def set_attributes(self, x, y, position=None, normal=None, color=None, material=None, specularity=0.0,
-                       depth=np.inf):
+                       depth=np.inf, stencil=1):
         """
         Method to set the attributes at a point in the geometry buffer.
 
@@ -91,6 +94,7 @@ class GeometryBuffer:
             material(list): Material vector. Defaults to None.
             specularity(float): Specularity value. Defaults to 0.0.
             depth(float): Depth value. Defaults to np.inf.
+            stencil(float): Stencil value. Defaults to 1.
 
         Returns:
             (bool): Whether the attributes were updated in the geometry buffer.
@@ -111,6 +115,7 @@ class GeometryBuffer:
                 self.set_material(x, y, material)
 
             self.set_specularity(x, y, specularity)
+            self.set_stencil(x, y, stencil)
 
         return success
 
@@ -246,6 +251,41 @@ class GeometryBuffer:
         if specularity > self.max_specularity:
             self.max_specularity = specularity
 
+    def get_depth(self, x, y):
+        """
+        Method to get a depth value on the depth buffer.
+
+        Args:
+            x(int): X position in the depth buffer.
+            y(int): Y position in the depth buffer.
+
+        Returns:
+            (float): Depth value from the depth buffer.
+
+        """
+        return self.depth_buffer[x, y]
+
+    def set_depth(self, x, y, depth):
+        """
+        Method to set a depth value on the depth buffer.
+
+        Args:
+            x(int): X position in the depth buffer.
+            y(int): Y position in the depth buffer.
+            depth(float): Depth value.
+
+        Returns:
+            (bool): Whether the depth value was updated in the depth buffer.
+
+        """
+        if depth < self.depth_buffer[x, y]:
+            self.depth_buffer[x, y] = depth
+            if depth > self.max_depth:
+                self.max_depth = depth
+            return True
+
+        return False
+
     def get_occlusion(self, x, y):
         """
         Method to get a occlusion value on the occlusion buffer.
@@ -298,40 +338,31 @@ class GeometryBuffer:
         """
         self.occlusion_blur_buffer[x, y] = occlusion_blur
 
-    def get_depth(self, x, y):
+    def get_stencil(self, x, y):
         """
-        Method to get a depth value on the depth buffer.
+        Method to get a stencil value on the stencil buffer.
 
         Args:
-            x(int): X position in the depth buffer.
-            y(int): Y position in the depth buffer.
+            x(int): X position in the stencil buffer.
+            y(int): Y position in the stencil buffer.
 
         Returns:
-            (float): Depth value from the depth buffer.
+            (float): Stencil value from the stencil buffer.
 
         """
-        return self.depth_buffer[x, y]
+        return self.stencil_buffer[x, y]
 
-    def set_depth(self, x, y, depth):
+    def set_stencil(self, x, y, stencil):
         """
-        Method to set a depth value on the depth buffer.
+        Method to set a stencil value on the stencil buffer.
 
         Args:
-            x(int): X position in the depth buffer.
-            y(int): Y position in the depth buffer.
-            depth(float): Depth value.
-
-        Returns:
-            (bool): Whether the depth value was updated in the depth buffer.
+            x(int): X position in the stencil buffer.
+            y(int): Y position in the stencil buffer.
+            stencil(float): Stencil value.
 
         """
-        if depth < self.depth_buffer[x, y]:
-            self.depth_buffer[x, y] = depth
-            if depth > self.max_depth:
-                self.max_depth = depth
-            return True
-
-        return False
+        self.stencil_buffer[x, y] = stencil
 
 
 class Renderer:
@@ -354,6 +385,11 @@ class Renderer:
         self.transform_stack = TransformStack()
         self.geometry_buffer = GeometryBuffer((1, 1))
         self.texture_manager = TextureManager()
+        self.ssao_kernel = SSAOKernel(16)
+        self.ssao_noise = SSAONoise(4)
+        self.ssao_radius = 0.5
+        self.ssao_bias = 0.025
+        self.perlin_noise = PerlinNoise()
 
         if scene_file_path:
             self.load_scene(scene_file_path)
@@ -444,13 +480,8 @@ class Renderer:
             obj = Object(transformation, geometry_path, color, ka, kd, ks, kt, specularity, texture)
             self.objects.append(obj)
 
-        self.ssao_kernel = SSAOKernel(16)
-        self.ssao_noise = SSAONoise(4)
-        self.ssao_radius = 0.5
-        self.ssao_bias = 0.025
-
     def render(self, enable_shadows=True, enable_ao=True, ndc_shift=None, cel_shade=False,
-               halftone_shade=False, wireframe=False):
+               halftone_shade=False, wireframe=False, line_art=False):
         """
         Method to render the scene.
 
@@ -461,6 +492,7 @@ class Renderer:
             cel_shade(bool): Whether to perform cel shading for the fragment. Defaults to False.
             halftone_shade(bool): Whether to perform halftone shading on the fragment. Defaults to False.
             wireframe(bool): Whether to render the scene as a wireframe. Defaults to False.
+            line_art(bool): Whether to render the scene as line art. Defaults to False.
 
         Returns:
             (Image): Image of the rendered scene.
@@ -477,6 +509,9 @@ class Renderer:
         for light in self.lights:
             if light.type != "ambient":
                 light.clear_shadow_buffer()
+
+        # Seed for Perlin noise.
+        seed = np.random.uniform(0.0, 1.0)
 
         # Creating a shadow buffer for every light in the scene.
         if not wireframe and enable_shadows:
@@ -504,6 +539,37 @@ class Renderer:
                 uv0 = np.array(v0.uv)
                 uv1 = np.array(v1.uv)
                 uv2 = np.array(v2.uv)
+
+                backface = False
+                if line_art:
+                    w_pos = np.matmul(obj.transformation.matrix, pos0)
+                    w_pos = np.transpose(w_pos[:-1])[0]
+
+                    w_normal0 = np.matmul(obj.transformation.matrix, n0)
+                    w_normal1 = np.matmul(obj.transformation.matrix, n1)
+                    w_normal2 = np.matmul(obj.transformation.matrix, n2)
+                    w_normal0 = np.transpose(w_normal0[:-1])[0]
+                    w_normal1 = np.transpose(w_normal1[:-1])[0]
+                    w_normal2 = np.transpose(w_normal2[:-1])[0]
+                    w_normal0 = np.array(w_normal0 / np.sqrt(np.dot(w_normal0, w_normal0)))
+                    w_normal1 = np.array(w_normal1 / np.sqrt(np.dot(w_normal1, w_normal1)))
+                    w_normal2 = np.array(w_normal2 / np.sqrt(np.dot(w_normal2, w_normal2)))
+
+                    p = np.array(w_pos)
+                    n = (w_normal0 + w_normal1 + w_normal2) / 3
+                    backface = is_backface(p, n, self.camera)
+
+                    if backface:
+                        outline_size = -self.perlin_noise(seed)
+                        seed += 0.001
+                        outline_size = 0.04 + (0.1 - 0.04) * (outline_size)
+
+                        pos0 = [[v0.pos[0] + v0.normal[0] * outline_size], [v0.pos[1] + v0.normal[1] * outline_size],
+                                [v0.pos[2] + v0.normal[2] * outline_size], [1]]
+                        pos1 = [[v1.pos[0] + v1.normal[0] * outline_size], [v1.pos[1] + v1.normal[1] * outline_size],
+                                [v1.pos[2] + v1.normal[2] * outline_size], [1]]
+                        pos2 = [[v2.pos[0] + v2.normal[0] * outline_size], [v2.pos[1] + v2.normal[1] * outline_size],
+                                [v2.pos[2] + v2.normal[2] * outline_size], [1]]
 
                 # Applying vertex and normal transformations.
                 vpos0 = np.matmul(mv_matrix, pos0)
@@ -564,7 +630,7 @@ class Renderer:
 
                 # Passing the geometry to the first pass of the deferred fragment shader.
                 geometry_pass_shader(self.geometry_buffer, obj, self.camera, pos0, pos1, pos2, vpos0, vpos1, vpos2,
-                                     n0, n1, n2, uv0, uv1, uv2)
+                                     n0, n1, n2, uv0, uv1, uv2, line_art, backface)
 
             # Popping the object transformation off the stack.
             self.transform_stack.pop()
@@ -581,7 +647,7 @@ class Renderer:
             occlusion_blur_shader(self.geometry_buffer, self.camera, self.ssao_noise)
 
         # Calculating the lighting in the second pass of the deferred fragment shader.
-        lighting_pass_shader(image, self.geometry_buffer, self.camera, self.lights, cel_shade, halftone_shade)
+        lighting_pass_shader(image, self.geometry_buffer, self.camera, self.lights, cel_shade, halftone_shade, line_art)
 
         return image
 
@@ -590,8 +656,8 @@ class Renderer:
         Method to render a visualization of the geometry buffer.
 
         Returns:
-            (tuple): A tuple of images containing visualizations of the position, normal, color, specularity, depth and
-                occlusion buffers.
+            (tuple): A tuple of images containing visualizations of the position, normal, color, specularity, depth,
+                occlusion and stencil buffers.
 
         """
         # Creating images for the buffers.
@@ -602,6 +668,7 @@ class Renderer:
         depth_image = Image.new("RGB", self.camera.resolution, 0x000000)
         occlusion_noise_image = Image.new("RGB", self.camera.resolution, 0x000000)
         occlusion_image = Image.new("RGB", self.camera.resolution, 0x000000)
+        stencil_image = Image.new("RGB", self.camera.resolution, 0x000000)
         for y in range(self.camera.resolution[1]):
             for x in range(self.camera.resolution[0]):
                 position_image.putpixel((x, y), (0, 0, 0))
@@ -611,10 +678,11 @@ class Renderer:
                 depth_image.putpixel((x, y), (0, 0, 0))
                 occlusion_noise_image.putpixel((x, y), (0, 0, 0))
                 occlusion_image.putpixel((x, y), (0, 0, 0))
+                stencil_image.putpixel((x, y), (0, 0, 0))
 
         for y in range(self.camera.resolution[1]):
             for x in range(self.camera.resolution[0]):
-                position, normal, color, _, specularity, depth, occlusion, occlusion_blur = \
+                position, normal, color, _, specularity, depth, occlusion, occlusion_blur, stencil = \
                     self.geometry_buffer.get_attributes(x, y)
 
                 if depth != np.inf:
@@ -652,8 +720,13 @@ class Renderer:
                     occlusion_color = (occlusion_val, occlusion_val, occlusion_val)
                     occlusion_image.putpixel((x, -y), occlusion_color)
 
+                    # Adding the stencil color.
+                    stencil_val = round(stencil * MAX_RGB)
+                    stencil_color = (stencil_val, stencil_val, stencil_val)
+                    stencil_image.putpixel((x, -y), stencil_color)
+
         return (position_image, normal_image, albedo_image, specular_image, depth_image, occlusion_noise_image,
-                occlusion_image)
+                occlusion_image, stencil_image)
 
     def render_shadow_buffers(self):
         """
@@ -699,6 +772,7 @@ if __name__ == "__main__":
     USE_AA = False
     CEL_SHADE = False
     HALFTONE_SHADE = False
+    LINE_ART = False
     WIREFRAME = False
     RENDER_AA_IMAGES = False
     RENDER_GEOMETRY_BUFFER = False
@@ -713,13 +787,15 @@ if __name__ == "__main__":
     DEPTH_FILE_NAME = "depth.ppm"
     OCCLUSION_NOISE_FILE_NAME = "occlusion_noise.ppm"
     OCCLUSION_FILE_NAME = "occlusion.ppm"
+    STENCIL_FILE_NAME = "stencil.ppm"
     SHADOW_BUFFER_FILE_NAME = "shadow{}.ppm"
 
     if USE_AA:
         aa_images = []
         for aa_shift in aa_shifts:
             aa_image = renderer.render(enable_shadows=ENABLE_SHADOWS, enable_ao=ENABLE_AO, ndc_shift=aa_shift,
-                                       cel_shade=CEL_SHADE, halftone_shade=HALFTONE_SHADE, wireframe=WIREFRAME)
+                                       cel_shade=CEL_SHADE, halftone_shade=HALFTONE_SHADE, wireframe=WIREFRAME,
+                                       line_art=LINE_ART)
             aa_images.append(aa_image)
 
             if RENDER_AA_IMAGES:
@@ -744,39 +820,41 @@ if __name__ == "__main__":
 
     else:
         image = renderer.render(enable_shadows=ENABLE_SHADOWS, enable_ao=ENABLE_AO, cel_shade=CEL_SHADE,
-                                halftone_shade=HALFTONE_SHADE, wireframe=WIREFRAME)
+                                halftone_shade=HALFTONE_SHADE, wireframe=WIREFRAME, line_art=LINE_ART)
         image.show()
 
         if WRITE_TO_FILE:
             save_image_to_ppm(image, OUTPUT_FILE_NAME)
 
-        if RENDER_GEOMETRY_BUFFER:
-            position_image, normal_image, albedo_image, specular_image, depth_image, occlusion_noise_image, \
-                occlusion_image = renderer.render_geometry_buffer()
-            position_image.show()
-            normal_image.show()
-            albedo_image.show()
-            specular_image.show()
-            depth_image.show()
-            occlusion_noise_image.show()
-            occlusion_image.show()
+    if RENDER_GEOMETRY_BUFFER:
+        position_image, normal_image, albedo_image, specular_image, depth_image, occlusion_noise_image, \
+            occlusion_image, stencil_image = renderer.render_geometry_buffer()
+        position_image.show()
+        normal_image.show()
+        albedo_image.show()
+        specular_image.show()
+        depth_image.show()
+        occlusion_noise_image.show()
+        occlusion_image.show()
+        stencil_image.show()
+
+        if WRITE_BUFFERS_TO_FILE:
+            save_image_to_ppm(position_image, POSITION_FILE_NAME)
+            save_image_to_ppm(normal_image, NORMAL_FILE_NAME)
+            save_image_to_ppm(albedo_image, ALBEDO_FILE_NAME)
+            save_image_to_ppm(specular_image, SPECULAR_FILE_NAME)
+            save_image_to_ppm(depth_image, DEPTH_FILE_NAME)
+            save_image_to_ppm(occlusion_noise_image, OCCLUSION_NOISE_FILE_NAME)
+            save_image_to_ppm(occlusion_image, OCCLUSION_FILE_NAME)
+            save_image_to_ppm(stencil_image, STENCIL_FILE_NAME)
+
+    if RENDER_SHADOW_BUFFERS:
+        shadow_buffer_images = renderer.render_shadow_buffers()
+        shadow_buffer_idx = 0
+        for shadow_buffer_image in shadow_buffer_images:
+            shadow_buffer_image.show()
 
             if WRITE_BUFFERS_TO_FILE:
-                save_image_to_ppm(position_image, POSITION_FILE_NAME)
-                save_image_to_ppm(normal_image, NORMAL_FILE_NAME)
-                save_image_to_ppm(albedo_image, ALBEDO_FILE_NAME)
-                save_image_to_ppm(specular_image, SPECULAR_FILE_NAME)
-                save_image_to_ppm(depth_image, DEPTH_FILE_NAME)
-                save_image_to_ppm(occlusion_noise_image, OCCLUSION_NOISE_FILE_NAME)
-                save_image_to_ppm(occlusion_image, OCCLUSION_FILE_NAME)
+                save_image_to_ppm(shadow_buffer_image, SHADOW_BUFFER_FILE_NAME.format(shadow_buffer_idx))
 
-        if RENDER_SHADOW_BUFFERS:
-            shadow_buffer_images = renderer.render_shadow_buffers()
-            shadow_buffer_idx = 0
-            for shadow_buffer_image in shadow_buffer_images:
-                shadow_buffer_image.show()
-
-                if WRITE_BUFFERS_TO_FILE:
-                    save_image_to_ppm(shadow_buffer_image, SHADOW_BUFFER_FILE_NAME.format(shadow_buffer_idx))
-
-                shadow_buffer_idx += 1
+            shadow_buffer_idx += 1

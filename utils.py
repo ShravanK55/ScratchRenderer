@@ -7,6 +7,29 @@ import numpy as np
 import os
 
 
+def is_backface(pos, normal, camera):
+    """
+    Method to check whether a surface is a back-facing (away from the camera).
+
+    Args:
+        pos(list): Position of a vertex on the surface.
+        normal(list): Normal of the surface.
+        camera(Camera): Camera looking at the surface.
+
+    Returns:
+        (bool): Whether the surface is back-facing.
+
+    """
+    view_direction = np.array(pos - camera.position)
+    view_direction = view_direction / np.sqrt(np.dot(view_direction, view_direction))
+
+    n_dot_e = np.dot(normal, view_direction)
+    if n_dot_e > 0.015:
+        return True
+
+    return False
+
+
 def triangle_area(pos0, pos1, pos2):
     """
     Method to get the area of a triangle.
