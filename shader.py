@@ -670,11 +670,26 @@ def wireframe_shader(image, camera, pos0, pos1, pos2, color=None):
         color(list): Color to use for drawing the wireframe lines. Defaults to None.
 
     """
-    # Getting the co-ordinates from vectors.
-    x0, y0, z0 = pos0
-    x1, y1, z1 = pos1
-    x2, y2, z2 = pos2
+    # Drawing lines between each pair of vertices.
+    draw_line(image, camera, pos0, pos1, color)
+    draw_line(image, camera, pos1, pos2, color)
+    draw_line(image, camera, pos2, pos0, color)
 
+
+def draw_line(image, camera, pos0, pos1, color=None):
+    """
+    Method to draw a line between two vertices.
+
+    Args:
+        image(Image): Image to write the pixels into.
+        camera(Camera): Camera that is viewing the scene.
+        pos0(list): Raster space position of vertex 0.
+        pos1(list): Raster space position of vertex 1.
+        color(list): Color to use for drawing the wireframe lines. Defaults to None.
+
+    """
+    x1, y1, _ = pos0
+    x2, y2, _ = pos1
     line_color = color if color is not None else (0, 0, 0)
 
     steep = False
@@ -699,11 +714,12 @@ def wireframe_shader(image, camera, pos0, pos1, pos2, color=None):
     y = math.floor(y1)
 
     # Bressenham's algorithm for line rendering.
-    while x <= math.floor(x2) and x < camera.resolution[0] - 1 and y < camera.resolution[1] - 1:
-        if (steep):
-            image.putpixel((y, -x), line_color)
-        else:
-            image.putpixel((x, -y), line_color)
+    while x <= math.floor(x2):
+        if x > 0 and y > 0 and x < camera.resolution[0] - 1 and y < camera.resolution[1] - 1:
+            if (steep):
+                image.putpixel((y, -x), line_color)
+            else:
+                image.putpixel((x, -y), line_color)
 
         derr2 += derr
         if derr2 > dx:
