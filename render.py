@@ -35,13 +35,13 @@ class GeometryBuffer:
         self.color_buffer = [[[0, 0, 0] for _ in range(self.resolution[1])] for _ in range(self.resolution[0])]
         self.material_buffer = [[[0, 0, 0] for _ in range(self.resolution[1])] for _ in range(self.resolution[0])]
         self.specular_buffer = np.matrix(np.zeros((self.resolution[0], self.resolution[1])))
+        self.depth_buffer = np.matrix(np.ones((self.resolution[0], self.resolution[1])) * np.inf)
         self.occlusion_buffer = np.matrix(np.ones((self.resolution[0], self.resolution[1])))
         self.occlusion_blur_buffer = np.matrix(np.ones((self.resolution[0], self.resolution[1])))
-        self.depth_buffer = np.matrix(np.ones((self.resolution[0], self.resolution[1])) * np.inf)
 
-        # Max depth and specularity is used for visualization purposes only.
-        self.max_depth = np.NINF
+        # Max depth and specularity are used for visualization purposes only.
         self.max_specularity = np.NINF
+        self.max_depth = np.NINF
 
     def clear(self):
         """
@@ -52,13 +52,13 @@ class GeometryBuffer:
         self.color_buffer = [[[0, 0, 0] for _ in range(self.resolution[1])] for _ in range(self.resolution[0])]
         self.material_buffer = [[[0, 0, 0] for _ in range(self.resolution[1])] for _ in range(self.resolution[0])]
         self.specular_buffer = np.matrix(np.zeros((self.resolution[0], self.resolution[1])))
+        self.depth_buffer = np.matrix(np.ones((self.resolution[0], self.resolution[1])) * np.inf)
         self.occlusion_buffer = np.matrix(np.ones((self.resolution[0], self.resolution[1])))
         self.occlusion_blur_buffer = np.matrix(np.ones((self.resolution[0], self.resolution[1])))
-        self.depth_buffer = np.matrix(np.ones((self.resolution[0], self.resolution[1])) * np.inf)
 
-        # Max depth and specularity is used for visualization purposes only.
-        self.max_depth = np.NINF
+        # Max depth and specularity are used for visualization purposes only.
         self.max_specularity = np.NINF
+        self.max_depth = np.NINF
 
     def get_attributes(self, x, y):
         """
@@ -449,11 +449,14 @@ class Renderer:
         self.ssao_radius = 0.5
         self.ssao_bias = 0.025
 
-    def render(self, ndc_shift=None, cel_shade=False, halftone_shade=False, wireframe=False):
+    def render(self, enable_shadows=True, enable_ao=True, ndc_shift=None, cel_shade=False,
+               halftone_shade=False, wireframe=False):
         """
         Method to render the scene.
 
         Args:
+            enable_shadows(bool): Whether to render shadows. Defaults to True.
+            enable_ao(bool): Whether to enable ambient occlusion. Defaults to True.
             ndc_shift(list): NDC shift to apply for anti aliasing. Defaults to None.
             cel_shade(bool): Whether to perform cel shading for the fragment. Defaults to False.
             halftone_shade(bool): Whether to perform halftone shading on the fragment. Defaults to False.
@@ -475,10 +478,8 @@ class Renderer:
             if light.type != "ambient":
                 light.clear_shadow_buffer()
 
-
-
         # Creating a shadow buffer for every light in the scene.
-        if not wireframe:
+        if not wireframe and enable_shadows:
             shadow_buffer_shader(self.objects, self.lights)
 
         for obj in self.objects:
@@ -571,12 +572,13 @@ class Renderer:
         if wireframe:
             return image
 
-        # Calculating the occlusion values for ambient occlusion.
-        occlusion_pass_shader(self.geometry_buffer, self.camera, self.ssao_kernel, self.ssao_noise, self.ssao_radius,
-                              self.ssao_bias)
+        if enable_ao:
+            # Calculating the occlusion values for ambient occlusion.
+            occlusion_pass_shader(self.geometry_buffer, self.camera, self.ssao_kernel, self.ssao_noise,
+                                  self.ssao_radius, self.ssao_bias)
 
-        # Blurring the occlusion buffer to remove noise.
-        occlusion_blur_shader(self.geometry_buffer, self.camera, self.ssao_noise)
+            # Blurring the occlusion buffer to remove noise.
+            occlusion_blur_shader(self.geometry_buffer, self.camera, self.ssao_noise)
 
         # Calculating the lighting in the second pass of the deferred fragment shader.
         lighting_pass_shader(image, self.geometry_buffer, self.camera, self.lights, cel_shade, halftone_shade)
@@ -692,6 +694,8 @@ if __name__ == "__main__":
     renderer = Renderer("table_scene.json")
     aa_shifts = [[-0.52, 0.38], [0.41, 0.56], [0.27, 0.08], [-0.17, -0.29], [0.58, -0.55], [-0.31, -0.71]]
     aa_weights = [0.128, 0.119, 0.294, 0.249, 0.104, 0.106]
+    ENABLE_SHADOWS = True
+    ENABLE_AO = True
     USE_AA = False
     CEL_SHADE = False
     HALFTONE_SHADE = False
@@ -714,8 +718,8 @@ if __name__ == "__main__":
     if USE_AA:
         aa_images = []
         for aa_shift in aa_shifts:
-            aa_image = renderer.render(ndc_shift=aa_shift, cel_shade=CEL_SHADE, halftone_shade=HALFTONE_SHADE,
-                                       wireframe=WIREFRAME)
+            aa_image = renderer.render(enable_shadows=ENABLE_SHADOWS, enable_ao=ENABLE_AO, ndc_shift=aa_shift,
+                                       cel_shade=CEL_SHADE, halftone_shade=HALFTONE_SHADE, wireframe=WIREFRAME)
             aa_images.append(aa_image)
 
             if RENDER_AA_IMAGES:
@@ -739,7 +743,8 @@ if __name__ == "__main__":
             save_image_to_ppm(image, OUTPUT_FILE_NAME)
 
     else:
-        image = renderer.render(cel_shade=CEL_SHADE, halftone_shade=HALFTONE_SHADE, wireframe=WIREFRAME)
+        image = renderer.render(enable_shadows=ENABLE_SHADOWS, enable_ao=ENABLE_AO, cel_shade=CEL_SHADE,
+                                halftone_shade=HALFTONE_SHADE, wireframe=WIREFRAME)
         image.show()
 
         if WRITE_TO_FILE:

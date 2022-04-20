@@ -694,7 +694,7 @@ def draw_line(image, camera, pos0, pos1, color=None):
 
     steep = False
     # Swap x and y for slope > 45.
-    if abs(x1 - x2) < abs(y1 - y2) :
+    if abs(x1 - x2) < abs(y1 - y2):
         x1, y1 = y1, x1
         x2, y2 = y2, x2
         steep = True
