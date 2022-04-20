@@ -9,6 +9,7 @@ from plane_renderer import *
 from toon_shading import *
 from wireframe_renderer import *
 from halftone_render import *
+from normal_map import *
 
 # Functions
 # Light calculation function
@@ -540,6 +541,9 @@ renderToonLine(camera_data, triangle_data, material_data, xres, yres, rotation_m
 renderWireframe(triangle_data, xres, yres, mvp_matrix, normal_transformation_matrix)
 renderHalftone(camera_data, triangle_data, material_data, xres, yres, rotation_matrix, scale_matrix, translate_matrix, scale_matrix_inverse_transpose, camera_matrix, perspective_matrix, light_data)
 
+depth_map = generate_depth_map(triangle_data, plane_data, mvp_matrix, xres, yres)
+normal_map_im = generate_normal_map(depth_map, xres, yres)
+render_with_normal_map(normal_map_im, triangle_data, mvp_matrix, normal_transformation_matrix, xres, yres, texmap, tex_xres, tex_yres, light_n, la, la_intensity, ld, ld_intensity, Ka, Kd, Ks, E, s)
 
 im.show()
 #im2.show()
