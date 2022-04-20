@@ -210,6 +210,17 @@ def shade_fragment(raster_pos, fragment_pos, camera, lights, n, fragment_color, 
             specular_color += light_color * ((n_dot_h * light_scale) ** specularity)
             continue
 
+        if halftone_shade:
+            # Getting the halfway vec between the light direction and camera direction.
+            half_vec = np.array(l) + np.array(e)
+            half_vec = half_vec / np.sqrt(np.dot(half_vec, half_vec))
+            n_dot_h = np.dot(n, half_vec)
+
+            # Accumulating the diffuse and specular color.
+            diffuse_color += light_color * n_dot_l
+            specular_color += light_color * ((n_dot_h * n_dot_l) ** specularity)
+            continue
+
         # Clamping the value of R dot E between 0 and 1.
         r_dot_e = max(r_dot_e, 0)
         r_dot_e = min(r_dot_e, 1)
@@ -239,7 +250,8 @@ def shade_fragment(raster_pos, fragment_pos, camera, lights, n, fragment_color, 
     out_color = (round(color[0] * MAX_RGB), round(color[1] * MAX_RGB), round(color[2] * MAX_RGB))
 
     # Perform halftone shading.
-    if cel_shade and halftone_shade:
+    if halftone_shade and not cel_shade:
+        color = ((ka * ambient_color) + ((kd * diffuse_color) + (ks * specular_color)) * (1.0 - shadow))
         x = raster_pos[0]
         y = raster_pos[1]
         x /= camera.resolution[1]
