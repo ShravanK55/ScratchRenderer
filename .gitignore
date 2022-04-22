@@ -151,5 +151,12 @@ cython_debug/
 #  option (not recommended) you can uncomment the following to ignore the entire idea folder.
 #.idea/
 
-# PPM images
+# Image files.
+*.png
+*.jpg
+*.jpeg
 *.ppm
+
+# 3D Model Files
+*.obj
+*.mtl

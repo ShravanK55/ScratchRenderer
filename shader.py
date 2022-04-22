@@ -291,8 +291,8 @@ def shade_fragment(raster_pos, fragment_pos, camera, lights, n, fragment_color, 
     return out_color
 
 
-def geometry_pass_shader(g_buffer, obj, camera, pos0, pos1, pos2, vpos0, vpos1, vpos2, n0, n1, n2, uv0,
-                         uv1, uv2, line_art=False, is_backface=False):
+def geometry_pass_shader(g_buffer, obj, camera, pos0, pos1, pos2, vpos0, vpos1, vpos2, n0, n1, n2, uv0, uv1, uv2,
+                         t0=None, t1=None, t2=None, line_art=False, is_backface=False):
     """
     Method implementing a geometry pass shader (First pass in deferred rendering).
 
@@ -307,11 +307,14 @@ def geometry_pass_shader(g_buffer, obj, camera, pos0, pos1, pos2, vpos0, vpos1, 
         vpos1(list): View space position of vertex 1.
         vpos2(list): View space position of vertex 2.
         n0(list): Normal of vertex 0.
-        n1(list): Normal of vertex 0.
-        n2(list): Normal of vertex 0.
+        n1(list): Normal of vertex 1.
+        n2(list): Normal of vertex 2.
         uv0(list): UV of vertex 0.
         uv1(list): UV of vertex 1.
         uv2(list): UV of vertex 2.
+        t0(list): Tangent of vertex 0. Defaults to None.
+        t1(list): Tangent of vertex 1. Defaults to None.
+        t2(list): Tangent of vertex 2. Defaults to None.
         line_art(bool): Whether to draw line art of the object. Defaults to False.
         is_backface(bool): Whether the surface being drawn is a backface. Defaults to False.
 
@@ -361,6 +364,20 @@ def geometry_pass_shader(g_buffer, obj, camera, pos0, pos1, pos2, vpos0, vpos1, 
                 if obj.texture:
                     color = get_texture_color(obj.texture, uv) * obj.kt
 
+                # Getting the normal from the normal map if the object has one.
+                tex_normal = None
+                if obj.normal_map and t0 is not None and t1 is not None and t2 is not None:
+                    t = alpha * t0 + beta * t1 + gamma * t2
+                    bt = np.cross(n, t)
+                    tbn_matrix = [[t[0], bt[0], n[0]],
+                                  [t[1], bt[1], n[1]],
+                                  [t[2], bt[2], n[2]]]
+                    tex_normal = get_texture_color(obj.normal_map, uv) * obj.kt
+                    tex_normal = tex_normal * 2.0 - 1.0
+                    tex_normal = np.matmul(tbn_matrix, tex_normal)
+                    tex_normal = tex_normal / np.sqrt(np.dot(tex_normal, tex_normal))
+                normal = tex_normal if tex_normal is not None else n
+
                 # Getting the object material.
                 material = [obj.ka, obj.kd, obj.ks]
 
@@ -371,7 +388,8 @@ def geometry_pass_shader(g_buffer, obj, camera, pos0, pos1, pos2, vpos0, vpos1, 
                 stencil_value = 0 if line_art and is_backface else 1
 
                 # Adding geometry to the geometry buffer.
-                g_buffer.set_attributes(x, y, vpos, n, color, material, obj.specularity, z, stencil_value)
+                success = g_buffer.set_attributes(x, y, vpos, normal, color, material, obj.specularity, z,
+                                                  stencil_value)
 
 
 def occlusion_pass_shader(g_buffer, camera, kernel, noise, radius=0.5, bias=0.025):

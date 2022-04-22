@@ -13,7 +13,7 @@ class Object:
     """
 
     def __init__(self, transformation, geometry_path=None, color=None, ka=0.0, kd=0.0, ks=0.0, kt=0.0,
-                 specularity=0.0, texture=None):
+                 specularity=0.0, texture=None, normal_map=None):
         """
         Method to initialize an object.
 
@@ -27,6 +27,7 @@ class Object:
             kt(float): Texture co-efficient. Defaults to 0.0.
             specularity(float): Specularity of the object. Defaults to 0.0.
             texture(Image): Texture to use for the object. Defaults to None.
+            normal_map(Image): Normal map to use for the object. Defaults to None.
 
         """
         self.transformation = transformation
@@ -38,6 +39,7 @@ class Object:
         self.kt = kt
         self.specularity = specularity
         self.texture = texture
+        self.normal_map = normal_map
 
         if geometry_path:
             self.import_geometry_from_file(geometry_path)

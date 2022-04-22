@@ -472,12 +472,17 @@ class Renderer:
             kt = material.get("Kt", 0.0)
             specularity = material.get("n", 1.0)
             texture_path = material.get("texture")
+            normal_map_path = material.get("normal_map")
             texture = None
+            normal_map = None
 
             if texture_path:
                 texture = self.texture_manager.load_texture(texture_path)
 
-            obj = Object(transformation, geometry_path, color, ka, kd, ks, kt, specularity, texture)
+            if normal_map_path:
+                normal_map = self.texture_manager.load_texture(normal_map_path)
+
+            obj = Object(transformation, geometry_path, color, ka, kd, ks, kt, specularity, texture, normal_map)
             self.objects.append(obj)
 
     def render(self, enable_shadows=True, enable_ao=True, ndc_shift=None, cel_shade=False,
@@ -540,6 +545,34 @@ class Renderer:
                 uv1 = np.array(v1.uv)
                 uv2 = np.array(v2.uv)
 
+                # Getting the tangents at each vertex if it has a normal map.
+                t0 = None
+                t1 = None
+                t2 = None
+                if obj.normal_map:
+                    delta_pos_1 = np.array([v1.pos[0] - v0.pos[0], v1.pos[1] - v0.pos[1], v1.pos[2] - v0.pos[2]])
+                    delta_pos_2 = np.array([v2.pos[0] - v0.pos[0], v2.pos[1] - v0.pos[1], v2.pos[2] - v0.pos[2]])
+                    delta_uv_1 = [v1.uv[0] - v0.uv[0], v1.uv[1] - v0.uv[1]]
+                    delta_uv_2 = [v2.uv[0] - v0.uv[0], v2.uv[1] - v0.uv[1]]
+                    r = 1.0 / (delta_uv_1[0] * delta_uv_2[1] - delta_uv_1[1] * delta_uv_2[0])
+                    tangent = (delta_pos_1 * delta_uv_2[1] - delta_pos_2 * delta_uv_1[1]) * r
+                    tangent = tangent / np.sqrt(np.dot(tangent, tangent))
+
+                    # Use the Gram-Schmidt process to orthogonalize the tangent to the normals.
+                    nt0 = np.array([v0.normal[0], v0.normal[1], v0.normal[2]])
+                    nt1 = np.array([v1.normal[0], v1.normal[1], v1.normal[2]])
+                    nt2 = np.array([v2.normal[0], v2.normal[1], v2.normal[2]])
+                    t0 = tangent - nt0 * np.dot(tangent, nt0)
+                    t1 = tangent - nt1 * np.dot(tangent, nt1)
+                    t2 = tangent - nt2 * np.dot(tangent, nt2)
+                    t0 = t0 / np.sqrt(np.dot(t0, t0))
+                    t1 = t1 / np.sqrt(np.dot(t1, t1))
+                    t2 = t2 / np.sqrt(np.dot(t2, t2))
+                    t0 = [[t0[0]], [t0[1]], [t0[2]], [0]]
+                    t1 = [[t1[0]], [t1[1]], [t1[2]], [0]]
+                    t2 = [[t2[0]], [t2[1]], [t2[2]], [0]]
+
+                # Displacing backfaces for line art/outlines.
                 backface = False
                 if line_art:
                     w_pos = np.matmul(obj.transformation.matrix, pos0)
@@ -582,6 +615,11 @@ class Renderer:
                 n1 = np.matmul(normal_transform_matrix, n1)
                 n2 = np.matmul(normal_transform_matrix, n2)
 
+                if obj.normal_map:
+                    t0 = np.matmul(normal_transform_matrix, t0)
+                    t1 = np.matmul(normal_transform_matrix, t1)
+                    t2 = np.matmul(normal_transform_matrix, t2)
+
                 # Conversion to row vectors and normalization.
                 vpos0 = np.transpose(vpos0)[0]
                 vpos1 = np.transpose(vpos1)[0]
@@ -595,6 +633,13 @@ class Renderer:
                 n0 = n0 / np.sqrt(np.dot(n0, n0))
                 n1 = n1 / np.sqrt(np.dot(n1, n1))
                 n2 = n2 / np.sqrt(np.dot(n2, n2))
+                if obj.normal_map:
+                    t0 = np.transpose(t0[:-1])[0]
+                    t1 = np.transpose(t1[:-1])[0]
+                    t2 = np.transpose(t2[:-1])[0]
+                    t0 = t0 / np.sqrt(np.dot(t0, t0))
+                    t1 = t1 / np.sqrt(np.dot(t1, t1))
+                    t2 = t2 / np.sqrt(np.dot(t2, t2))
 
                 # Homogenizing all the vectors.
                 pos0 = pos0 / pos0[3]
@@ -630,7 +675,7 @@ class Renderer:
 
                 # Passing the geometry to the first pass of the deferred fragment shader.
                 geometry_pass_shader(self.geometry_buffer, obj, self.camera, pos0, pos1, pos2, vpos0, vpos1, vpos2,
-                                     n0, n1, n2, uv0, uv1, uv2, line_art, backface)
+                                     n0, n1, n2, uv0, uv1, uv2, t0, t1, t2, line_art, backface)
 
             # Popping the object transformation off the stack.
             self.transform_stack.pop()
@@ -689,7 +734,8 @@ class Renderer:
                     # Adding the position value color.
                     v_pos = deepcopy(position)
                     v_pos = v_pos / np.sqrt(np.dot(v_pos, v_pos))
-                    pos_color = (round(v_pos[0] * MAX_RGB), round(v_pos[1] * MAX_RGB), round(v_pos[2] * MAX_RGB))
+                    pos_color = (round(abs(v_pos[0]) * MAX_RGB), round(abs(v_pos[1]) * MAX_RGB),
+                                 round(abs(v_pos[2]) * MAX_RGB))
                     position_image.putpixel((x, -y), pos_color)
 
                     # Adding the normal value color.
