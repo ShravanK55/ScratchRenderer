@@ -77,4 +77,9 @@ def get_texture_color(texture, uv):
     p0010_color = f * p10_color + (1 - f) * p00_color
     p0111_color = f * p11_color + (1 - f) * p01_color
     color = g * p0111_color + (1 - g) * p0010_color
+
+    # Get rid of alpha channel if present.
+    if len(color) > 3:
+        color = color[:-1]
+
     return color / MAX_RGB

@@ -138,14 +138,15 @@ def fragment_shader(image, z_buffer, obj, camera, lights, pos0, pos1, pos2, n0, 
                 if z < z_buffer[x, y]:
                     n = alpha * n0 + beta * n1 + gamma * n2
                     color = light_calc(obj, camera, lights, n, uv)
-                    image.putpixel((x, -y), color)
+                    image.putpixel((x, camera.resolution[1] - y - 1), color)
                     z_buffer[x, y] = z
 
 
 # DEFERRED RENDERING
 
 def shade_fragment(raster_pos, fragment_pos, camera, lights, n, fragment_color, material, specularity, occlusion=1.0,
-                   stencil=1, shadow=0.0, cel_shade=False, halftone_shade=False, line_art=False):
+                   stencil=1, shadow=0.0, cel_shade=False, halftone_shade=False, line_art=False, cs_mid=0.5,
+                   cs_shadow=0.15):
     """
     Method to calculate the color of a fragment from lighting (Deferred lighting pass).
 
@@ -162,8 +163,11 @@ def shade_fragment(raster_pos, fragment_pos, camera, lights, n, fragment_color, 
         stencil(float): Stencil buffer value of the fragment being rendered. Defaults to 1.
         shadow(float): Amount of shadow on the fragment being rendered. Defaults to 1.0.
         cel_shade(bool): Whether to perform cel shading on the fragment. Defaults to False.
+        midtone(float): Midtone value to use for cel shading. Defaults
         halftone_shade(bool): Whether to perform halftone shading on the fragment. Defaults to False.
         line_art(bool): Whether to draw line art. Defaults to False.
+        cs_mid(float): Midtone value to use for cel shading. Defaults to 0.5.
+        cs_shadow(float): Shadow value to use for cel shading. Defaults to 0.15.
 
     Returns:
         (list): Color of the fragment.
@@ -202,11 +206,11 @@ def shade_fragment(raster_pos, fragment_pos, camera, lights, n, fragment_color, 
         if cel_shade:
             light_scale = 0
             if n_dot_l <= 0.01:
-                light_scale = 0
+                light_scale = cs_shadow
             elif (n_dot_l > 0.5 and n_dot_l <= 1):
                 light_scale = 1
             else:
-                light_scale = 0.5
+                light_scale = cs_mid
 
             # Getting the halfway vec between the light direction and camera direction.
             half_vec = np.array(l) + np.array(e)
@@ -245,11 +249,11 @@ def shade_fragment(raster_pos, fragment_pos, camera, lights, n, fragment_color, 
     # Quantizing occlusion for cel shading.
     if cel_shade:
         if occlusion <= 0.01:
-            occlusion = 0
+            occlusion = cs_shadow
         elif (occlusion > 0.5 and occlusion <= 1):
             occlusion = 1
         else:
-            occlusion = 0.5
+            occlusion = cs_mid
 
     # Calculating the final color.
     ka, kd, ks = material
@@ -498,7 +502,7 @@ def occlusion_blur_shader(g_buffer, camera, noise):
 
 
 def lighting_pass_shader(image, g_buffer, camera, lights, cel_shade=False, halftone_shade=False, line_art=False,
-                         shadow_bias=0.005):
+                         shadow_bias=0.015, cs_mid=0.5, cs_shadow=0.15):
     """
     Method implementing a lighting pass shader (Second pass in deferred rendering).
 
@@ -510,7 +514,9 @@ def lighting_pass_shader(image, g_buffer, camera, lights, cel_shade=False, halft
         cel_shade(bool): Whether to perform cel shading for the fragment. Defaults to False.
         halftone_shade(bool): Whether to perform halftone shading on the fragment. Defaults to False.
         line_art(bool): Whether to draw line art. Defaults to False.
-        shadow_bias(float): Bias to use when checking whether a fragment is in shadow. Defaults to 0.005.
+        shadow_bias(float): Bias to use when checking whether a fragment is in shadow. Defaults to 0.015.
+        cs_mid(float): Midtone value to use for cel shading. Defaults to 0.5.
+        cs_shadow(float): Shadow value to use for cel shading. Defaults to 0.15.
 
     """
     transform_stack = TransformStack()
@@ -537,8 +543,9 @@ def lighting_pass_shader(image, g_buffer, camera, lights, cel_shade=False, halft
 
                 # Calculating the final color of a fragment from lighting.
                 color = shade_fragment((x, y), position, camera, lights, normal, color, material, specularity,
-                                       occlusion_blur, stencil, shadow, cel_shade, halftone_shade, line_art)
-                image.putpixel((x, -y), color)
+                                       occlusion_blur, stencil, shadow, cel_shade, halftone_shade, line_art,
+                                       cs_mid, cs_shadow)
+                image.putpixel((x, camera.resolution[1] - y - 1), color)
 
 
 def shadow_buffer_shader(objects, lights):
@@ -634,7 +641,7 @@ def shadow_buffer_shader(objects, lights):
             transform_stack.pop()
 
 
-def get_fragment_shadow(w_pos, w_normal, lights, bias=0.005):
+def get_fragment_shadow(w_pos, w_normal, lights, bias=0.015):
     """
     Method to get the amount of shadow cast on a fragment by all lights in the scene.
 
@@ -642,7 +649,7 @@ def get_fragment_shadow(w_pos, w_normal, lights, bias=0.005):
         w_pos(list): World space position of the fragment.
         w_normal(list): World space normal of the fragment.
         lights(list): List of lights in the scene.
-        bias(float): Bias to use when checking whether a fragment is in shadow. Defaults to 0.005.
+        bias(float): Bias to use when checking whether a fragment is in shadow. Defaults to 0.015.
 
     Returns:
         (float): Shadow value of the fragment.
@@ -752,9 +759,9 @@ def draw_line(image, camera, pos0, pos1, color=None):
     while x <= math.floor(x2):
         if x > 0 and y > 0 and x < camera.resolution[0] - 1 and y < camera.resolution[1] - 1:
             if (steep):
-                image.putpixel((y, -x), line_color)
+                image.putpixel((y, camera.resolution[1] - x - 1), line_color)
             else:
-                image.putpixel((x, -y), line_color)
+                image.putpixel((x, camera.resolution[1] - y - 1), line_color)
 
         derr2 += derr
         if derr2 > dx:

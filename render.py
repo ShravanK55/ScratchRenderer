@@ -385,11 +385,14 @@ class Renderer:
         self.transform_stack = TransformStack()
         self.geometry_buffer = GeometryBuffer((1, 1))
         self.texture_manager = TextureManager()
+        self.shadow_bias = 0.015
         self.ssao_kernel = SSAOKernel(16)
         self.ssao_noise = SSAONoise(4)
         self.ssao_radius = 0.5
         self.ssao_bias = 0.025
         self.perlin_noise = PerlinNoise()
+        self.cs_mid = 0.5
+        self.cs_shadow = 0.15
 
         if scene_file_path:
             self.load_scene(scene_file_path)
@@ -403,7 +406,26 @@ class Renderer:
 
         """
         with open(scene_file_path) as json_file:
-            self.scene = json.load(json_file).get("scene")
+            json_data = json.load(json_file)
+            renderer_params = json_data.get("renderer")
+            self.scene = json_data.get("scene")
+
+        # Loading renderer data.
+        if renderer_params:
+            self.shadow_bias = renderer_params.get("shadow_bias", self.shadow_bias)
+            ssao_kernel_size = renderer_params.get("ssao_kernel_size")
+            ssao_tile_size = renderer_params.get("ssao_tile_size")
+
+            self.ssao_radius = renderer_params.get("ssao_radius", self.ssao_radius)
+            self.ssao_bias = renderer_params.get("ssao_bias", self.ssao_bias)
+            self.cs_mid = renderer_params.get("cs_mid", self.cs_mid)
+            self.cs_shadow = renderer_params.get("cs_shadow", self.cs_shadow)
+
+            if ssao_kernel_size:
+                self.ssao_kernel = SSAOKernel(ssao_kernel_size)
+
+            if ssao_tile_size:
+                self.ssao_noise = SSAONoise(ssao_tile_size)
 
         # Getting camera data
         camera_data = self.scene.get("camera")
@@ -411,10 +433,15 @@ class Renderer:
         camera_look_at = camera_data.get("to")
         camera_bounds = camera_data.get("bounds")
         camera_resolution = camera_data.get("resolution")
+        camera_background_path = camera_data.get("background")
+        camera_background = None
         camera_direction = [camera_position[i] - camera_look_at[i] for i in range(3)]
         camera_direction = camera_direction / np.sqrt(np.dot(camera_direction, camera_direction))
 
-        self.camera = Camera(camera_position, camera_direction, camera_bounds, camera_resolution)
+        if camera_background_path:
+            camera_background = self.texture_manager.load_texture(camera_background_path)
+
+        self.camera = Camera(camera_position, camera_direction, camera_bounds, camera_resolution, camera_background)
         self.geometry_buffer = GeometryBuffer(camera_resolution)
 
         self.transform_stack = TransformStack()
@@ -469,7 +496,7 @@ class Renderer:
             ka = material.get("Ka", 0.0)
             kd = material.get("Kd", 0.0)
             ks = material.get("Ks", 0.0)
-            kt = material.get("Kt", 0.0)
+            kt = material.get("Kt", 1.0)
             specularity = material.get("n", 1.0)
             texture_path = material.get("texture")
             normal_map_path = material.get("normal_map")
@@ -508,6 +535,9 @@ class Renderer:
         for y in range(self.camera.resolution[1]):
             for x in range(self.camera.resolution[0]):
                 image.putpixel((x, y), (128, 128, 128))
+
+        if self.camera.background:
+            image.paste(self.camera.background, (0, 0))
 
         # Clearing all buffers.
         self.geometry_buffer.clear()
@@ -692,7 +722,8 @@ class Renderer:
             occlusion_blur_shader(self.geometry_buffer, self.camera, self.ssao_noise)
 
         # Calculating the lighting in the second pass of the deferred fragment shader.
-        lighting_pass_shader(image, self.geometry_buffer, self.camera, self.lights, cel_shade, halftone_shade, line_art)
+        lighting_pass_shader(image, self.geometry_buffer, self.camera, self.lights, cel_shade, halftone_shade, line_art,
+                             self.shadow_bias, self.cs_mid, self.cs_shadow)
 
         return image
 
@@ -736,40 +767,40 @@ class Renderer:
                     v_pos = v_pos / np.sqrt(np.dot(v_pos, v_pos))
                     pos_color = (round(abs(v_pos[0]) * MAX_RGB), round(abs(v_pos[1]) * MAX_RGB),
                                  round(abs(v_pos[2]) * MAX_RGB))
-                    position_image.putpixel((x, -y), pos_color)
+                    position_image.putpixel((x, self.camera.resolution[1] - y - 1), pos_color)
 
                     # Adding the normal value color.
                     normal_color = (round(normal[0] * MAX_RGB), round(normal[1] * MAX_RGB), round(normal[2] * MAX_RGB))
-                    normal_image.putpixel((x, -y), normal_color)
+                    normal_image.putpixel((x, self.camera.resolution[1] - y - 1), normal_color)
 
                     # Adding the albedo color.
                     albedo_color = (round(color[0] * MAX_RGB), round(color[1] * MAX_RGB), round(color[2] * MAX_RGB))
-                    albedo_image.putpixel((x, -y), albedo_color)
+                    albedo_image.putpixel((x, self.camera.resolution[1] - y - 1), albedo_color)
 
                     # Adding the specular color.
                     specular_val = round(specularity / self.geometry_buffer.max_specularity * MAX_RGB)
                     specular_color = (specular_val, specular_val, specular_val)
-                    specular_image.putpixel((x, -y), specular_color)
+                    specular_image.putpixel((x, self.camera.resolution[1] - y - 1), specular_color)
 
                     # Adding the depth color.
                     depth_val = round(depth / self.geometry_buffer.max_depth * MAX_RGB)
                     depth_color = (depth_val, depth_val, depth_val)
-                    depth_image.putpixel((x, -y), depth_color)
+                    depth_image.putpixel((x, self.camera.resolution[1] - y - 1), depth_color)
 
                     # Adding the occlusion color.
                     occlusion_noise_val = round(occlusion * MAX_RGB)
                     occlusion_noise_color = (occlusion_noise_val, occlusion_noise_val, occlusion_noise_val)
-                    occlusion_noise_image.putpixel((x, -y), occlusion_noise_color)
+                    occlusion_noise_image.putpixel((x, self.camera.resolution[1] - y - 1), occlusion_noise_color)
 
                     # Adding the occlusion color.
                     occlusion_val = round(occlusion_blur * MAX_RGB)
                     occlusion_color = (occlusion_val, occlusion_val, occlusion_val)
-                    occlusion_image.putpixel((x, -y), occlusion_color)
+                    occlusion_image.putpixel((x, self.camera.resolution[1] - y - 1), occlusion_color)
 
                     # Adding the stencil color.
                     stencil_val = round(stencil * MAX_RGB)
                     stencil_color = (stencil_val, stencil_val, stencil_val)
-                    stencil_image.putpixel((x, -y), stencil_color)
+                    stencil_image.putpixel((x, self.camera.resolution[1] - y - 1), stencil_color)
 
         return (position_image, normal_image, albedo_image, specular_image, depth_image, occlusion_noise_image,
                 occlusion_image, stencil_image)
@@ -802,7 +833,7 @@ class Renderer:
                         # Adding the depth color.
                         depth_val = round(depth / light.max_depth * MAX_RGB)
                         depth_color = (depth_val, depth_val, depth_val)
-                        depth_image.putpixel((x, -y), depth_color)
+                        depth_image.putpixel((x, self.camera.resolution[1] - y - 1), depth_color)
 
             shadow_buffer_images.append(depth_image)
 
@@ -810,13 +841,13 @@ class Renderer:
 
 
 if __name__ == "__main__":
-    renderer = Renderer("table_scene.json")
+    renderer = Renderer("jinx_scene.json")
     aa_shifts = [[-0.52, 0.38], [0.41, 0.56], [0.27, 0.08], [-0.17, -0.29], [0.58, -0.55], [-0.31, -0.71]]
     aa_weights = [0.128, 0.119, 0.294, 0.249, 0.104, 0.106]
     ENABLE_SHADOWS = True
     ENABLE_AO = True
     USE_AA = False
-    CEL_SHADE = False
+    CEL_SHADE = True
     HALFTONE_SHADE = False
     LINE_ART = False
     WIREFRAME = False
