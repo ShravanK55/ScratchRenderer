@@ -41,6 +41,7 @@
         "geometry":"plane",
         "material":{
           "texture": "brick_diffuse.jpg",
+          "normal_map": "brick_normal.jpg",
           "Cs":[
             0.5,
             0.25,
