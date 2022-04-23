@@ -255,6 +255,13 @@ def shade_fragment(raster_pos, fragment_pos, camera, lights, n, fragment_color, 
         else:
             occlusion = cs_mid
 
+        if shadow >= 0.99:
+            shadow = cs_shadow
+        elif (shadow < 0.5 and shadow >= 0.0):
+            shadow = 0
+        else:
+            shadow = cs_mid
+
     # Calculating the final color.
     ka, kd, ks = material
     outline = 0.0 if line_art and stencil == 0 else 1.0
