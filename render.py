@@ -847,7 +847,7 @@ if __name__ == "__main__":
     ENABLE_SHADOWS = True
     ENABLE_AO = True
     USE_AA = False
-    CEL_SHADE = True
+    CEL_SHADE = False
     HALFTONE_SHADE = False
     LINE_ART = False
     WIREFRAME = False
