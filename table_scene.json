@@ -25,12 +25,141 @@
               0.5,
               0.5
             ]
+          }
+        ]
+      },
+      {
+        "id":"backpack",
+        "notes":"",
+        "geometry":"models/backpack/backpack",
+        "material":{
+          "texture": "models/backpack/diffuse.png",
+          "Cs":[
+            1,
+            0,
+            0
+          ],
+          "Ka":1.0,
+          "Kd":1.0,
+          "Ks":1.0,
+          "Kt":1.0,
+          "n":10.0
+        },
+        "transforms":[
+          {
+            "S":[
+              0.5,
+              0.5,
+              0.5
+            ]
           },
           {
             "T":[
+              -2,
               0,
+              2
+            ]
+          }
+        ]
+      },
+      {
+        "id":"backpack",
+        "notes":"",
+        "geometry":"models/backpack/backpack",
+        "material":{
+          "texture": "models/backpack/diffuse.png",
+          "Cs":[
+            1,
+            0,
+            0
+          ],
+          "Ka":1.0,
+          "Kd":1.0,
+          "Ks":1.0,
+          "Kt":1.0,
+          "n":10.0
+        },
+        "transforms":[
+          {
+            "S":[
+              0.5,
+              0.5,
+              0.5
+            ]
+          },
+          {
+            "T":[
+              2,
               0,
-              0
+              2
+            ]
+          }
+        ]
+      },
+      {
+        "id":"backpack",
+        "notes":"",
+        "geometry":"models/backpack/backpack",
+        "material":{
+          "texture": "models/backpack/diffuse.png",
+          "Cs":[
+            1,
+            0,
+            0
+          ],
+          "Ka":1.0,
+          "Kd":1.0,
+          "Ks":1.0,
+          "Kt":1.0,
+          "n":10.0
+        },
+        "transforms":[
+          {
+            "S":[
+              0.5,
+              0.5,
+              0.5
+            ]
+          },
+          {
+            "T":[
+              -2,
+              0,
+              -2
+            ]
+          }
+        ]
+      },
+      {
+        "id":"backpack",
+        "notes":"",
+        "geometry":"models/backpack/backpack",
+        "material":{
+          "texture": "models/backpack/diffuse.png",
+          "Cs":[
+            1,
+            0,
+            0
+          ],
+          "Ka":1.0,
+          "Kd":1.0,
+          "Ks":1.0,
+          "Kt":1.0,
+          "n":10.0
+        },
+        "transforms":[
+          {
+            "S":[
+              0.5,
+              0.5,
+              0.5
+            ]
+          },
+          {
+            "T":[
+              2,
+              0,
+              -2
             ]
           }
         ]
@@ -62,6 +191,181 @@
             ]
           }
         ]
+      },
+      {
+        "id":"plane",
+        "notes":"",
+        "geometry":"plane",
+        "material":{
+          "texture": "brick_diffuse.jpg",
+          "normal_map": "brick_normal.jpg",
+          "Cs":[
+            0.5,
+            0.25,
+            0.1
+          ],
+          "Ka":0.5,
+          "Kd":1.0,
+          "Ks":1.0,
+          "Kt": 1.0,
+          "n": 2.0
+        },
+        "transforms":[
+          {
+            "S":[
+              3.0,
+              3.0,
+              3.0
+            ]
+          },
+          {
+            "T": [
+              -3,
+              0,
+              0
+            ]
+          }
+        ]
+      },
+      {
+        "id":"plane",
+        "notes":"",
+        "geometry":"plane",
+        "material":{
+          "texture": "brick_diffuse.jpg",
+          "normal_map": "brick_normal.jpg",
+          "Cs":[
+            0.5,
+            0.25,
+            0.1
+          ],
+          "Ka":0.5,
+          "Kd":1.0,
+          "Ks":1.0,
+          "Kt": 1.0,
+          "n": 2.0
+        },
+        "transforms":[
+          {
+            "S":[
+              3.0,
+              3.0,
+              3.0
+            ]
+          },
+          {
+            "T": [
+              3,
+              0,
+              0
+            ]
+          }
+        ]
+      },
+      {
+        "id":"plane",
+        "notes":"",
+        "geometry":"plane",
+        "material":{
+          "texture": "brick_diffuse.jpg",
+          "normal_map": "brick_normal.jpg",
+          "Cs":[
+            0.5,
+            0.25,
+            0.1
+          ],
+          "Ka":0.5,
+          "Kd":1.0,
+          "Ks":1.0,
+          "Kt": 1.0,
+          "n": 2.0
+        },
+        "transforms":[
+          {
+            "S":[
+              3.0,
+              3.0,
+              3.0
+            ]
+          },
+          {
+            "T": [
+              -3,
+              0,
+              -3
+            ]
+          }
+        ]
+      },
+      {
+        "id":"plane",
+        "notes":"",
+        "geometry":"plane",
+        "material":{
+          "texture": "brick_diffuse.jpg",
+          "normal_map": "brick_normal.jpg",
+          "Cs":[
+            0.5,
+            0.25,
+            0.1
+          ],
+          "Ka":0.5,
+          "Kd":1.0,
+          "Ks":1.0,
+          "Kt": 1.0,
+          "n": 2.0
+        },
+        "transforms":[
+          {
+            "S":[
+              3.0,
+              3.0,
+              3.0
+            ]
+          },
+          {
+            "T": [
+              0,
+              0,
+              -3
+            ]
+          }
+        ]
+      },
+      {
+        "id":"plane",
+        "notes":"",
+        "geometry":"plane",
+        "material":{
+          "texture": "brick_diffuse.jpg",
+          "normal_map": "brick_normal.jpg",
+          "Cs":[
+            0.5,
+            0.25,
+            0.1
+          ],
+          "Ka":0.5,
+          "Kd":1.0,
+          "Ks":1.0,
+          "Kt": 1.0,
+          "n": 2.0
+        },
+        "transforms":[
+          {
+            "S":[
+              3.0,
+              3.0,
+              3.0
+            ]
+          },
+          {
+            "T": [
+              3,
+              0,
+              -3
+            ]
+          }
+        ]
       }
     ],
     "lights":[
@@ -85,9 +389,9 @@
         ],
         "intensity":0.6,
         "from":[
-          5,
-          5,
-          5
+          10,
+          10,
+          10
         ],
         "to":[
           0,
