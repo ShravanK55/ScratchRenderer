@@ -6,7 +6,7 @@
   "scene":{
     "shapes":[
       {
-        "id":"backpack",
+        "id":"hollow_knight",
         "notes":"",
         "geometry":"models/hollow_knight/hollow_knight",
         "material":{

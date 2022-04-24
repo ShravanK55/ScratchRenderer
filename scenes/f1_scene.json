@@ -39,7 +39,7 @@
         ]
       },
       {
-        "id":"plane",
+        "id":"plane1",
         "notes":"",
         "geometry":"models/plane/plane",
         "material":{
@@ -65,7 +65,7 @@
         ]
       },
       {
-        "id":"plane",
+        "id":"plane2",
         "notes":"",
         "geometry":"models/plane/plane",
         "material":{
@@ -98,7 +98,7 @@
         ]
       },
       {
-        "id":"plane",
+        "id":"plane3",
         "notes":"",
         "geometry":"models/plane/plane",
         "material":{
@@ -131,7 +131,7 @@
         ]
       },
       {
-        "id":"plane",
+        "id":"plane4",
         "notes":"",
         "geometry":"models/plane/plane",
         "material":{
@@ -164,7 +164,7 @@
         ]
       },
       {
-        "id":"plane",
+        "id":"plane5",
         "notes":"",
         "geometry":"models/plane/plane",
         "material":{
@@ -197,7 +197,7 @@
         ]
       },
       {
-        "id":"plane",
+        "id":"plane6",
         "notes":"",
         "geometry":"models/plane/plane",
         "material":{
@@ -230,7 +230,7 @@
         ]
       },
       {
-        "id":"plane",
+        "id":"plane7",
         "notes":"",
         "geometry":"models/plane/plane",
         "material":{
@@ -263,7 +263,7 @@
         ]
       },
       {
-        "id":"plane",
+        "id":"plane8",
         "notes":"",
         "geometry":"models/plane/plane",
         "material":{
@@ -296,7 +296,7 @@
         ]
       },
       {
-        "id":"plane",
+        "id":"plane9",
         "notes":"",
         "geometry":"models/plane/plane",
         "material":{
@@ -329,7 +329,7 @@
         ]
       },
       {
-        "id":"plane",
+        "id":"plane10",
         "notes":"",
         "geometry":"models/plane/plane",
         "material":{
@@ -362,7 +362,7 @@
         ]
       },
       {
-        "id":"plane",
+        "id":"plane11",
         "notes":"",
         "geometry":"models/plane/plane",
         "material":{
@@ -395,7 +395,7 @@
         ]
       },
       {
-        "id":"plane",
+        "id":"plane12",
         "notes":"",
         "geometry":"models/plane/plane",
         "material":{

@@ -6,7 +6,7 @@
   "scene":{
     "shapes":[
       {
-        "id":"backpack",
+        "id":"backpack1",
         "notes":"",
         "geometry":"models/backpack/backpack",
         "material":{
@@ -36,7 +36,7 @@
         ]
       },
       {
-        "id":"backpack",
+        "id":"backpack2",
         "notes":"",
         "geometry":"models/backpack/backpack",
         "material":{
@@ -73,7 +73,7 @@
         ]
       },
       {
-        "id":"backpack",
+        "id":"backpack3",
         "notes":"",
         "geometry":"models/backpack/backpack",
         "material":{
@@ -110,7 +110,7 @@
         ]
       },
       {
-        "id":"backpack",
+        "id":"backpack4",
         "notes":"",
         "geometry":"models/backpack/backpack",
         "material":{
@@ -147,7 +147,7 @@
         ]
       },
       {
-        "id":"backpack",
+        "id":"backpack5",
         "notes":"",
         "geometry":"models/backpack/backpack",
         "material":{
@@ -184,7 +184,7 @@
         ]
       },
       {
-        "id":"plane",
+        "id":"plane1",
         "notes":"",
         "geometry":"models/plane/plane",
         "material":{
@@ -212,7 +212,7 @@
         ]
       },
       {
-        "id":"plane",
+        "id":"plane2",
         "notes":"",
         "geometry":"models/plane/plane",
         "material":{
@@ -247,7 +247,7 @@
         ]
       },
       {
-        "id":"plane",
+        "id":"plane3",
         "notes":"",
         "geometry":"models/plane/plane",
         "material":{
@@ -282,7 +282,7 @@
         ]
       },
       {
-        "id":"plane",
+        "id":"plane4",
         "notes":"",
         "geometry":"models/plane/plane",
         "material":{
@@ -317,7 +317,7 @@
         ]
       },
       {
-        "id":"plane",
+        "id":"plane5",
         "notes":"",
         "geometry":"models/plane/plane",
         "material":{
@@ -352,7 +352,7 @@
         ]
       },
       {
-        "id":"plane",
+        "id":"plane6",
         "notes":"",
         "geometry":"models/plane/plane",
         "material":{

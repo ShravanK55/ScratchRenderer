@@ -80,7 +80,7 @@ def get_texture_color(texture, uv):
     color = g * p0111_color + (1 - g) * p0010_color
 
     # Get rid of alpha channel if present.
-    if (texture_mode == "RGB" or texture_mode == "RGBA") and len(color) > 3:
+    if texture_mode == "RGBA" and len(color) > 3:
         color = color[:-1]
 
     if (texture_mode == "L" or texture_mode == "P"):

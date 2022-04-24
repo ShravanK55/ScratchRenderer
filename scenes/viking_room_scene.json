@@ -6,7 +6,7 @@
   "scene":{
     "shapes":[
       {
-        "id":"backpack",
+        "id":"viking_room",
         "notes":"",
         "geometry":"models/viking_room/viking_room",
         "material":{

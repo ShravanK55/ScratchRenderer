@@ -2,7 +2,7 @@
   "scene":{
     "shapes":[
       {
-        "id":"jinx",
+        "id":"artorias",
         "notes":"",
         "geometry":"models/artorias/artorias",
         "material":{

@@ -110,7 +110,7 @@ def saveToPPM():
 
 # Main
 # Reading scene JSON
-with open("scenes/scene.json") as json_file:
+with open("scenes/teapot_scene.json") as json_file:
     scene_data = json.load(json_file)
 
 # Getting camera data
