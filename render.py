@@ -3,6 +3,7 @@ Module implementing classes and methods related to rendering.
 """
 
 from ambient_occlusion import SSAOKernel, SSAONoise
+from argparse import ArgumentParser
 from constants import MAX_RGB
 from copy import deepcopy
 from entity import Camera, Light, Object
@@ -434,6 +435,7 @@ class Renderer:
         camera_bounds = camera_data.get("bounds")
         camera_resolution = camera_data.get("resolution")
         camera_background_path = camera_data.get("background")
+        camera_background_color = camera_data.get("background_color")
         camera_background = None
         camera_direction = [camera_position[i] - camera_look_at[i] for i in range(3)]
         camera_direction = camera_direction / np.sqrt(np.dot(camera_direction, camera_direction))
@@ -441,7 +443,8 @@ class Renderer:
         if camera_background_path:
             camera_background = self.texture_manager.load_texture(camera_background_path)
 
-        self.camera = Camera(camera_position, camera_direction, camera_bounds, camera_resolution, camera_background)
+        self.camera = Camera(camera_position, camera_direction, camera_bounds, camera_resolution, camera_background,
+                             camera_background_color)
         self.geometry_buffer = GeometryBuffer(camera_resolution)
 
         self.transform_stack = TransformStack()
@@ -546,7 +549,11 @@ class Renderer:
         image = Image.new("RGB", self.camera.resolution, 0x000000)
         for y in range(self.camera.resolution[1]):
             for x in range(self.camera.resolution[0]):
-                image.putpixel((x, y), (128, 128, 128))
+                bg_color = (128, 128, 128)
+                if self.camera.background_color is not None:
+                    bg_color = self.camera.background_color
+
+                image.putpixel((x, y), bg_color)
 
         if self.camera.background:
             image.paste(self.camera.background, (0, 0))
@@ -773,6 +780,7 @@ class Renderer:
                 occlusion_image.putpixel((x, y), (0, 0, 0))
                 stencil_image.putpixel((x, y), (0, 0, 0))
 
+        print("Rendering geometry buffers.")
         for y in range(self.camera.resolution[1]):
             for x in range(self.camera.resolution[0]):
                 position, normal, color, _, specularity, depth, occlusion, occlusion_blur, stencil = \
@@ -830,7 +838,7 @@ class Renderer:
             (list): A list of images containing visualizations of the shadow buffers of each light.
 
         """
-        print("Rendering buffers.")
+        print("Rendering shadow buffers.")
         shadow_buffer_images = []
 
         for light in self.lights:
@@ -859,22 +867,35 @@ class Renderer:
 
 
 if __name__ == "__main__":
+    parser = ArgumentParser(description="A program that renders 3D scenes.")
+    parser.add_argument("-s", "--scene", help="Scene file path.", type=str, default="scenes/jinx_scene.json")
+    parser.add_argument("--disable_shadows", help="Disable shadows in the renderer.", action="store_true")
+    parser.add_argument("--disable_ssao", help="Disable ambient occlusion in the renderer.", action="store_true")
+    parser.add_argument("-a", "--anti_aliasing", help="Enable anti aliasing in the renderer.", action="store_true")
+    parser.add_argument("-c", "--cel_shade", help="Turn on cel shading.", action="store_true")
+    parser.add_argument("-t", "--halftone_shade", help="Turn on halftone shading.", action="store_true")
+    parser.add_argument("-l", "--line_art", help="Turn on line art shading.", action="store_true")
+    parser.add_argument("-w", "--wireframe", help="Turn on wireframe mode.", action="store_true")
+    parser.add_argument("-d", "--draw_buffers", help="Draw the geometry and shadow buffers.", action="store_true")
+    parser.add_argument("-f", "--write_to_file", help="Write the output images to files.", action="store_true")
+    args = parser.parse_args()
+
     np.seterr(divide='ignore', invalid='ignore')
-    renderer = Renderer("scenes/f1_scene.json")
-    aa_shifts = [[-0.52, 0.38], [0.41, 0.56], [0.27, 0.08], [-0.17, -0.29], [0.58, -0.55], [-0.31, -0.71]]
-    aa_weights = [0.128, 0.119, 0.294, 0.249, 0.104, 0.106]
-    ENABLE_SHADOWS = True
-    ENABLE_AO = True
-    USE_AA = False
-    CEL_SHADE = False
-    HALFTONE_SHADE = False
-    LINE_ART = False
-    WIREFRAME = False
+    renderer = Renderer(args.scene)
+    AA_SHIFTS = [[-0.52, 0.38], [0.41, 0.56], [0.27, 0.08], [-0.17, -0.29], [0.58, -0.55], [-0.31, -0.71]]
+    AA_WEIGHTS = [0.128, 0.119, 0.294, 0.249, 0.104, 0.106]
+    ENABLE_SHADOWS = False if args.disable_shadows else True
+    ENABLE_AO = False if args.disable_ssao else True
+    USE_AA = args.anti_aliasing
+    CEL_SHADE = args.cel_shade
+    HALFTONE_SHADE = args.halftone_shade
+    LINE_ART = args.line_art
+    WIREFRAME = args.wireframe
     RENDER_AA_IMAGES = False
-    RENDER_GEOMETRY_BUFFER = True
-    RENDER_SHADOW_BUFFERS = False
-    WRITE_TO_FILE = False
-    WRITE_BUFFERS_TO_FILE = False
+    RENDER_GEOMETRY_BUFFER = args.draw_buffers
+    RENDER_SHADOW_BUFFERS = args.draw_buffers
+    WRITE_TO_FILE = args.write_to_file
+    WRITE_BUFFERS_TO_FILE = args.write_to_file
     OUTPUT_FILE_NAME = "render.ppm"
     POSITION_FILE_NAME = "position.ppm"
     NORMAL_FILE_NAME = "normal.ppm"
@@ -888,7 +909,7 @@ if __name__ == "__main__":
 
     if USE_AA:
         aa_images = []
-        for aa_shift in aa_shifts:
+        for aa_shift in AA_SHIFTS:
             aa_image = renderer.render(enable_shadows=ENABLE_SHADOWS, enable_ao=ENABLE_AO, ndc_shift=aa_shift,
                                        cel_shade=CEL_SHADE, halftone_shade=HALFTONE_SHADE, wireframe=WIREFRAME,
                                        line_art=LINE_ART)
@@ -904,7 +925,7 @@ if __name__ == "__main__":
 
                 for i in range(len(aa_images)):
                     color = np.array(aa_images[i].getpixel((x, y)))
-                    out_color += [color[0] * aa_weights[i], color[1] * aa_weights[i], color[2] * aa_weights[i]]
+                    out_color += [color[0] * AA_WEIGHTS[i], color[1] * AA_WEIGHTS[i], color[2] * AA_WEIGHTS[i]]
 
                 out_color = (round(out_color[0]), round(out_color[1]), round(out_color[2]))
                 image.putpixel((x, y), tuple(out_color))
@@ -920,6 +941,7 @@ if __name__ == "__main__":
         image.show()
 
         if WRITE_TO_FILE:
+            print("Writing the render to {}.".format(OUTPUT_FILE_NAME))
             save_image_to_ppm(image, OUTPUT_FILE_NAME)
 
     if RENDER_GEOMETRY_BUFFER:
@@ -935,6 +957,7 @@ if __name__ == "__main__":
         stencil_image.show()
 
         if WRITE_BUFFERS_TO_FILE:
+            print("Writing the geometry buffers to files.")
             save_image_to_ppm(position_image, POSITION_FILE_NAME)
             save_image_to_ppm(normal_image, NORMAL_FILE_NAME)
             save_image_to_ppm(albedo_image, ALBEDO_FILE_NAME)
@@ -951,6 +974,7 @@ if __name__ == "__main__":
             shadow_buffer_image.show()
 
             if WRITE_BUFFERS_TO_FILE:
+                print("Writing shadow buffers to files.")
                 save_image_to_ppm(shadow_buffer_image, SHADOW_BUFFER_FILE_NAME.format(shadow_buffer_idx))
 
             shadow_buffer_idx += 1

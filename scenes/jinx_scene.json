@@ -108,7 +108,7 @@
         512,
         512
       ],
-      "background": "models/jinx/piltover_evening_512.png"
+      "background": "models/jinx/background.png"
     }
   }
 }

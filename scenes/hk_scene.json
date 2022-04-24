@@ -99,7 +99,8 @@
       "resolution":[
         512,
         512
-      ]
+      ],
+      "background": "models/hollow_knight/background.png"
     }
   }
 }

@@ -106,7 +106,7 @@
         512,
         512
       ],
-      "background": "models/artorias/artorias_bg_512.png"
+      "background": "models/artorias/background.png"
     }
   }
 }

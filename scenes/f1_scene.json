@@ -494,7 +494,8 @@
       "resolution":[
         512,
         512
-      ]
+      ],
+      "background": "models/f1/background.png"
     }
   }
 }

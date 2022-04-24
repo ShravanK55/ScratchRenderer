@@ -2,19 +2,28 @@
 Module for demonstrating the capabilities of the renderer.
 """
 
+from argparse import ArgumentParser
+from numpy import np
 from render import Renderer
 
 
 if __name__ == "__main__":
-    renderer = Renderer("scenes/table_scene.json")
+    parser = ArgumentParser(description="A program to demonstrate the capabilities of the renderer. Renders 6 images. "
+                                        "The first image has not special features. The second image has shadows, "
+                                        "ambient occlusion and normal mapping turned on. The third image is cel "
+                                        "shaded. The fourth image is halftone shaded. The fifth image has line art "
+                                        "rendering. The last image uses wireframe rendering.")
+    parser.add_argument("-s", "--scene", help="Scene file path.", type=str, default="scenes/table_scene.json")
+    args = parser.parse_args()
+
+    np.seterr(divide='ignore', invalid='ignore')
+    renderer = Renderer(args.scene)
     ENABLE_SHADOWS = True
     ENABLE_AO = True
     CEL_SHADE = False
     HALFTONE_SHADE = False
     LINE_ART = False
     WIREFRAME = False
-    RENDER_GEOMETRY_BUFFER = True
-    RENDER_SHADOW_BUFFERS = True
 
     print("#####################################################")
     print("## AO - SHADOWS - NORMAL MAPS RENDER               ##")

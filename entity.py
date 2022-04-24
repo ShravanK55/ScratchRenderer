@@ -73,7 +73,7 @@ class Camera:
     Class defining a camera for the scene.
     """
 
-    def __init__(self, position, direction, frustum_bounds, resolution, background=None):
+    def __init__(self, position, direction, frustum_bounds, resolution, background=None, background_color=None):
         """
         Method to initialize a camera.
 
@@ -83,6 +83,7 @@ class Camera:
             frustum_bounds(list): Bounds of the camera frustum. Format: [Near, Far, Right, Left, Top, Bottom].
             resolution(list): Resolution of the camera.
             background(Image): Background to use for the scene. Defaults to None.
+            background_color(list): Background color to use for the scene. Defaults to None.
 
         """
         self.position = position
@@ -90,6 +91,7 @@ class Camera:
         self.near, self.far, self.right, self.left, self.top, self.bottom = frustum_bounds
         self.resolution = resolution
         self.background = background
+        self.background_color = background_color
 
         self.cam_matrix = self.generate_cam_matrix()
         self.projection_matrix = self.generate_projection_matrix()
