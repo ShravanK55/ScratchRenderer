@@ -255,12 +255,12 @@ def shade_fragment(raster_pos, fragment_pos, camera, lights, n, fragment_color, 
         else:
             occlusion = cs_mid
 
-        if shadow >= 0.99:
-            shadow = cs_shadow
-        elif (shadow < 0.5 and shadow >= 0.0):
-            shadow = 0
+        if (shadow >= 0.0 and shadow < 0.2):
+            shadow = 0.0
+        elif (shadow > 0.5 and shadow <= 1.0):
+            shadow = 1.0 - cs_shadow
         else:
-            shadow = cs_mid
+            shadow = 1.0 - cs_mid
 
     # Calculating the final color.
     ka, kd, ks = material
@@ -399,8 +399,7 @@ def geometry_pass_shader(g_buffer, obj, camera, pos0, pos1, pos2, vpos0, vpos1, 
                 stencil_value = 0 if line_art and is_backface else 1
 
                 # Adding geometry to the geometry buffer.
-                success = g_buffer.set_attributes(x, y, vpos, normal, color, material, obj.specularity, z,
-                                                  stencil_value)
+                g_buffer.set_attributes(x, y, vpos, normal, color, material, obj.specularity, z, stencil_value)
 
 
 def occlusion_pass_shader(g_buffer, camera, kernel, noise, radius=0.5, bias=0.025):

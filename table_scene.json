@@ -1,4 +1,8 @@
 {
+  "renderer": {
+    "cs_mid": 0.4,
+    "cs_shadow": 0.1
+  },
   "scene":{
     "shapes":[
       {

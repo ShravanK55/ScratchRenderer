@@ -531,6 +531,7 @@ class Renderer:
 
         """
         # Creating a new image.
+        print("Creating a new render.")
         image = Image.new("RGB", self.camera.resolution, 0x000000)
         for y in range(self.camera.resolution[1]):
             for x in range(self.camera.resolution[0]):
@@ -550,8 +551,10 @@ class Renderer:
 
         # Creating a shadow buffer for every light in the scene.
         if not wireframe and enable_shadows:
+            print("Creating the shadow buffer.")
             shadow_buffer_shader(self.objects, self.lights)
 
+        print("Geometry pass.")
         for obj in self.objects:
             # Pushing the object transformation onto the stack and getting the concatenated matrix.
             self.transform_stack.push(obj.transformation.matrix)
@@ -714,6 +717,7 @@ class Renderer:
             return image
 
         if enable_ao:
+            print("Occlusion pass.")
             # Calculating the occlusion values for ambient occlusion.
             occlusion_pass_shader(self.geometry_buffer, self.camera, self.ssao_kernel, self.ssao_noise,
                                   self.ssao_radius, self.ssao_bias)
@@ -721,10 +725,12 @@ class Renderer:
             # Blurring the occlusion buffer to remove noise.
             occlusion_blur_shader(self.geometry_buffer, self.camera, self.ssao_noise)
 
+        print("Lighting pass.")
         # Calculating the lighting in the second pass of the deferred fragment shader.
         lighting_pass_shader(image, self.geometry_buffer, self.camera, self.lights, cel_shade, halftone_shade, line_art,
                              self.shadow_bias, self.cs_mid, self.cs_shadow)
 
+        print("Finished render.")
         return image
 
     def render_geometry_buffer(self):
@@ -813,6 +819,7 @@ class Renderer:
             (list): A list of images containing visualizations of the shadow buffers of each light.
 
         """
+        print("Rendering buffers.")
         shadow_buffer_images = []
 
         for light in self.lights:
