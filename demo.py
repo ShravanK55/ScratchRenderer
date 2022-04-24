@@ -6,7 +6,7 @@ from render import Renderer
 
 
 if __name__ == "__main__":
-    renderer = Renderer("table_scene.json")
+    renderer = Renderer("scenes/table_scene.json")
     ENABLE_SHADOWS = True
     ENABLE_AO = True
     CEL_SHADE = False

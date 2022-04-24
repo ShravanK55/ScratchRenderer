@@ -10,7 +10,7 @@
         "notes":"",
         "geometry":"models/hollow_knight/hollow_knight",
         "material":{
-          "texture": "models/hollow_knight/HollowKnightTextureFixed.png",
+          "texture": "models/hollow_knight/diffuse.png",
           "Cs":[
             1,
             0,

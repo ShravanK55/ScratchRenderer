@@ -500,8 +500,12 @@ class Renderer:
             specularity = material.get("n", 1.0)
             texture_path = material.get("texture")
             normal_map_path = material.get("normal_map")
+            specular_map_path = material.get("specular_map")
+            roughness_map_path = material.get("roughness_map")
             texture = None
             normal_map = None
+            specular_map = None
+            roughness_map = None
 
             if texture_path:
                 texture = self.texture_manager.load_texture(texture_path)
@@ -509,7 +513,14 @@ class Renderer:
             if normal_map_path:
                 normal_map = self.texture_manager.load_texture(normal_map_path)
 
-            obj = Object(transformation, geometry_path, color, ka, kd, ks, kt, specularity, texture, normal_map)
+            if specular_map_path:
+                specular_map = self.texture_manager.load_texture(specular_map_path)
+
+            if roughness_map_path:
+                roughness_map = self.texture_manager.load_texture(roughness_map_path)
+
+            obj = Object(transformation, geometry_path, color, ka, kd, ks, kt, specularity, texture, normal_map,
+                         specular_map, roughness_map)
             self.objects.append(obj)
 
     def render(self, enable_shadows=True, enable_ao=True, ndc_shift=None, cel_shade=False,
@@ -585,8 +596,8 @@ class Renderer:
                 if obj.normal_map:
                     delta_pos_1 = np.array([v1.pos[0] - v0.pos[0], v1.pos[1] - v0.pos[1], v1.pos[2] - v0.pos[2]])
                     delta_pos_2 = np.array([v2.pos[0] - v0.pos[0], v2.pos[1] - v0.pos[1], v2.pos[2] - v0.pos[2]])
-                    delta_uv_1 = [v1.uv[0] - v0.uv[0], v1.uv[1] - v0.uv[1]]
-                    delta_uv_2 = [v2.uv[0] - v0.uv[0], v2.uv[1] - v0.uv[1]]
+                    delta_uv_1 = np.array([v1.uv[0] - v0.uv[0], v1.uv[1] - v0.uv[1]])
+                    delta_uv_2 = np.array([v2.uv[0] - v0.uv[0], v2.uv[1] - v0.uv[1]])
                     r = 1.0 / (delta_uv_1[0] * delta_uv_2[1] - delta_uv_1[1] * delta_uv_2[0])
                     tangent = (delta_pos_1 * delta_uv_2[1] - delta_pos_2 * delta_uv_1[1]) * r
                     tangent = tangent / np.sqrt(np.dot(tangent, tangent))
@@ -848,7 +859,8 @@ class Renderer:
 
 
 if __name__ == "__main__":
-    renderer = Renderer("jinx_scene.json")
+    np.seterr(divide='ignore', invalid='ignore')
+    renderer = Renderer("scenes/f1_scene.json")
     aa_shifts = [[-0.52, 0.38], [0.41, 0.56], [0.27, 0.08], [-0.17, -0.29], [0.58, -0.55], [-0.31, -0.71]]
     aa_weights = [0.128, 0.119, 0.294, 0.249, 0.104, 0.106]
     ENABLE_SHADOWS = True
@@ -859,7 +871,7 @@ if __name__ == "__main__":
     LINE_ART = False
     WIREFRAME = False
     RENDER_AA_IMAGES = False
-    RENDER_GEOMETRY_BUFFER = False
+    RENDER_GEOMETRY_BUFFER = True
     RENDER_SHADOW_BUFFERS = False
     WRITE_TO_FILE = False
     WRITE_BUFFERS_TO_FILE = False

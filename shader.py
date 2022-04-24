@@ -392,6 +392,17 @@ def geometry_pass_shader(g_buffer, obj, camera, pos0, pos1, pos2, vpos0, vpos1, 
                 # Getting the object material.
                 material = [obj.ka, obj.kd, obj.ks]
 
+                # Getting the specular value.
+                specularity = obj.specularity
+                if obj.specular_map:
+                    specular = get_texture_color(obj.specular_map, uv)
+                    specularity = specular[0]
+
+                # Getting the roughness value.
+                if obj.roughness_map:
+                    roughness = get_texture_color(obj.roughness_map, uv)
+                    material[2] = 1.0 - roughness[0]
+
                 # Interpolating the Z value.
                 z = alpha * z0 + beta * z1 + gamma * z2
 
@@ -399,7 +410,7 @@ def geometry_pass_shader(g_buffer, obj, camera, pos0, pos1, pos2, vpos0, vpos1, 
                 stencil_value = 0 if line_art and is_backface else 1
 
                 # Adding geometry to the geometry buffer.
-                g_buffer.set_attributes(x, y, vpos, normal, color, material, obj.specularity, z, stencil_value)
+                g_buffer.set_attributes(x, y, vpos, normal, color, material, specularity, z, stencil_value)
 
 
 def occlusion_pass_shader(g_buffer, camera, kernel, noise, radius=0.5, bias=0.025):

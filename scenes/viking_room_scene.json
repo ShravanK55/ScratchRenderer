@@ -10,7 +10,7 @@
         "notes":"",
         "geometry":"models/viking_room/viking_room",
         "material":{
-          "texture": "models/viking_room/VikingRoomTextureFixed.png",
+          "texture": "models/viking_room/diffuse.png",
           "Cs":[
             1,
             0,

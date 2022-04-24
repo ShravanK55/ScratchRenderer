@@ -4,9 +4,9 @@
       {
         "id":"teapot1",
         "notes":"",
-        "geometry":"teapot",
+        "geometry":"models/teapot/teapot",
         "material":{
-          "texture": "usc1.jpeg",
+          "texture": "models/teapot/diffuse.jpeg",
           "Cs":[
             1,
             0,
@@ -40,9 +40,9 @@
       {
         "id":"teapot2",
         "notes":"no scaling",
-        "geometry":"teapot",
+        "geometry":"models/teapot/teapot",
         "material":{
-          "texture": "usc1.jpeg",
+          "texture": "models/teapot/diffuse.jpeg",
           "Cs":[
             0,
             1,
@@ -76,9 +76,9 @@
       {
         "id":"teapot3",
         "notes":"",
-        "geometry":"teapot",
+        "geometry":"models/teapot/teapot",
         "material":{
-          "texture": "usc1.jpeg",
+          "texture": "models/teapot/diffuse.jpeg",
           "Cs":[
             0,
             0,
@@ -112,9 +112,9 @@
       {
         "id":"teapot4",
         "notes":"",
-        "geometry":"teapot",
+        "geometry":"models/teapot/teapot",
         "material":{
-          "texture": "usc1.jpeg",
+          "texture": "models/teapot/diffuse.jpeg",
           "Cs":[
             1,
             1,

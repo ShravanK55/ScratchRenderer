@@ -49,9 +49,10 @@ def get_texture_color(texture, uv):
         uv(list): UV co-ordinate.
 
     Returns:
-        (list): Color at the given UV co-ordinate.
+        (tuple): Color at the given UV co-ordinate.
 
     """
+    texture_mode = texture.mode
     texture_width, texture_height = texture.size
     x = min(uv[0] * (texture_width - 1), texture_width - 2)
     y = min(uv[1] * (texture_height - 1), texture_height - 2)
@@ -79,7 +80,10 @@ def get_texture_color(texture, uv):
     color = g * p0111_color + (1 - g) * p0010_color
 
     # Get rid of alpha channel if present.
-    if len(color) > 3:
+    if (texture_mode == "RGB" or texture_mode == "RGBA") and len(color) > 3:
         color = color[:-1]
+
+    if (texture_mode == "L" or texture_mode == "P"):
+        color = np.array([color])
 
     return color / MAX_RGB

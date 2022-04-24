@@ -6,7 +6,10 @@
         "notes":"",
         "geometry":"models/artorias/artorias",
         "material":{
-          "texture": "models/artorias/ArtoriasTextureFixed.png",
+          "texture": "models/artorias/diffuse.png",
+          "normal_map": "models/artorias/normal.png",
+          "specular_map": "models/artorias/specular.png",
+          "roughness_map": "models/artorias/roughness.png",
           "Cs":[
             1,
             0,
@@ -103,7 +106,7 @@
         512,
         512
       ],
-      "background": "models/backgrounds/artorias_arena_512.png"
+      "background": "models/artorias/artorias_bg_512.png"
     }
   }
 }

@@ -7,7 +7,7 @@ from PIL import Image
 
 def renderPlane(im, xres, yres, zbuffer, mvp_matrix, light_n, la, la_intensity, ld, ld_intensity,
                 E, Ks, Kd, Ka, s):
-    with open("plane.json") as json_file:
+    with open("models/plane/plane.json") as json_file:
         triangle_data = json.load(json_file)
 
     '''im = Image.new('RGB', [xres, yres], 0x000000)

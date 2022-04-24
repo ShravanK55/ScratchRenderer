@@ -110,7 +110,7 @@ def saveToPPM():
 
 # Main
 # Reading scene JSON
-with open('scene.json') as json_file:
+with open("scenes/scene.json") as json_file:
     scene_data = json.load(json_file)
 
 # Getting camera data
@@ -131,7 +131,7 @@ width, height = im.size
 max_RGB = 255
 
 # Opening and saving texture map
-texmap = Image.open("usc1.jpeg")
+texmap = Image.open("models/teapot/diffuse.jpeg")
 texmap = ImageOps.mirror(texmap)
 tex_xres, tex_yres = texmap.size
 
@@ -534,7 +534,7 @@ for triangle in triangle_data.get('data'):
 renderPlane(im, xres, yres, zbuffer, plane_mvp_matrix, light_n, la, la_intensity, ld, ld_intensity, E, Ks, Kd, Ka, s)
 # im4 = renderPlane(im, xres, yres, zbuffer, light_matrix, light_perspective_matrix)
 
-with open("plane.json") as json_file:
+with open("models/plane/plane.json") as json_file:
     plane_data = json.load(json_file)
 renderShadow(im, plane_data, xres, yres, plane_mvp_matrix, plane_light_mvp_matrix, shadow_buffer, zbuffer, la, la_intensity, Ka)
 renderToonLine(camera_data, triangle_data, material_data, xres, yres, rotation_matrix, scale_matrix, translate_matrix, mvp_matrix, normal_transformation_matrix, light_data)

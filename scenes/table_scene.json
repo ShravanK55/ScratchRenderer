@@ -11,6 +11,9 @@
         "geometry":"models/backpack/backpack",
         "material":{
           "texture": "models/backpack/diffuse.png",
+          "normal_map": "models/backpack/normal.png",
+          "specular_map": "models/backpack/specular.png",
+          "roughness_map": "models/backpack/roughness.png",
           "Cs":[
             1,
             0,
@@ -38,6 +41,9 @@
         "geometry":"models/backpack/backpack",
         "material":{
           "texture": "models/backpack/diffuse.png",
+          "normal_map": "models/backpack/normal.png",
+          "specular_map": "models/backpack/specular.png",
+          "roughness_map": "models/backpack/roughness.png",
           "Cs":[
             1,
             0,
@@ -72,6 +78,9 @@
         "geometry":"models/backpack/backpack",
         "material":{
           "texture": "models/backpack/diffuse.png",
+          "normal_map": "models/backpack/normal.png",
+          "specular_map": "models/backpack/specular.png",
+          "roughness_map": "models/backpack/roughness.png",
           "Cs":[
             1,
             0,
@@ -106,6 +115,9 @@
         "geometry":"models/backpack/backpack",
         "material":{
           "texture": "models/backpack/diffuse.png",
+          "normal_map": "models/backpack/normal.png",
+          "specular_map": "models/backpack/specular.png",
+          "roughness_map": "models/backpack/roughness.png",
           "Cs":[
             1,
             0,
@@ -140,6 +152,9 @@
         "geometry":"models/backpack/backpack",
         "material":{
           "texture": "models/backpack/diffuse.png",
+          "normal_map": "models/backpack/normal.png",
+          "specular_map": "models/backpack/specular.png",
+          "roughness_map": "models/backpack/roughness.png",
           "Cs":[
             1,
             0,
@@ -171,10 +186,10 @@
       {
         "id":"plane",
         "notes":"",
-        "geometry":"plane",
+        "geometry":"models/plane/plane",
         "material":{
-          "texture": "brick_diffuse.jpg",
-          "normal_map": "brick_normal.jpg",
+          "texture": "models/plane/diffuse.jpg",
+          "normal_map": "models/plane/normal.jpg",
           "Cs":[
             0.5,
             0.25,
@@ -199,10 +214,10 @@
       {
         "id":"plane",
         "notes":"",
-        "geometry":"plane",
+        "geometry":"models/plane/plane",
         "material":{
-          "texture": "brick_diffuse.jpg",
-          "normal_map": "brick_normal.jpg",
+          "texture": "models/plane/diffuse.jpg",
+          "normal_map": "models/plane/normal.jpg",
           "Cs":[
             0.5,
             0.25,
@@ -234,10 +249,10 @@
       {
         "id":"plane",
         "notes":"",
-        "geometry":"plane",
+        "geometry":"models/plane/plane",
         "material":{
-          "texture": "brick_diffuse.jpg",
-          "normal_map": "brick_normal.jpg",
+          "texture": "models/plane/diffuse.jpg",
+          "normal_map": "models/plane/normal.jpg",
           "Cs":[
             0.5,
             0.25,
@@ -269,10 +284,10 @@
       {
         "id":"plane",
         "notes":"",
-        "geometry":"plane",
+        "geometry":"models/plane/plane",
         "material":{
-          "texture": "brick_diffuse.jpg",
-          "normal_map": "brick_normal.jpg",
+          "texture": "models/plane/diffuse.jpg",
+          "normal_map": "models/plane/normal.jpg",
           "Cs":[
             0.5,
             0.25,
@@ -304,10 +319,10 @@
       {
         "id":"plane",
         "notes":"",
-        "geometry":"plane",
+        "geometry":"models/plane/plane",
         "material":{
-          "texture": "brick_diffuse.jpg",
-          "normal_map": "brick_normal.jpg",
+          "texture": "models/plane/diffuse.jpg",
+          "normal_map": "models/plane/normal.jpg",
           "Cs":[
             0.5,
             0.25,
@@ -339,10 +354,10 @@
       {
         "id":"plane",
         "notes":"",
-        "geometry":"plane",
+        "geometry":"models/plane/plane",
         "material":{
-          "texture": "brick_diffuse.jpg",
-          "normal_map": "brick_normal.jpg",
+          "texture": "models/plane/diffuse.jpg",
+          "normal_map": "models/plane/normal.jpg",
           "Cs":[
             0.5,
             0.25,
