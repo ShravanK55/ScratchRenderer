@@ -3,7 +3,7 @@ Module for demonstrating the capabilities of the renderer.
 """
 
 from argparse import ArgumentParser
-from numpy import np
+import numpy as np
 from render import Renderer
 
 
