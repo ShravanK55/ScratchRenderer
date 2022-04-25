@@ -555,7 +555,7 @@ class Renderer:
 
                 image.putpixel((x, y), bg_color)
 
-        if self.camera.background:
+        if self.camera.background and not (halftone_shade or (line_art and not cel_shade) or wireframe):
             image.paste(self.camera.background, (0, 0))
 
         # Clearing all buffers.

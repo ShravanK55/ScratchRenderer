@@ -271,7 +271,7 @@ def shade_fragment(raster_pos, fragment_pos, camera, lights, n, fragment_color, 
 
     # Perform halftone shading.
     if halftone_shade and not cel_shade:
-        color = ((ka * ambient_color) + ((kd * diffuse_color) + (ks * specular_color)) * (1.0 - shadow))
+        color = object_color * ((ka * ambient_color) + ((kd * diffuse_color) + (ks * specular_color)) * (1.0 - shadow))
         x = raster_pos[0]
         y = raster_pos[1]
         x /= camera.resolution[1]
