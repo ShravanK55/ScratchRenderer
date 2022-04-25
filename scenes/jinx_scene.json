@@ -2,7 +2,9 @@
   "renderer": {
     "shadow_bias": 0.015,
     "cs_mid": 0.6,
-    "cs_shadow": 0.6
+    "cs_shadow": 0.6,
+    "outline_max": 0.05,
+    "outline_min": 0.01
   },
   "scene":{
     "shapes":[

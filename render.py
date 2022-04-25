@@ -394,6 +394,8 @@ class Renderer:
         self.perlin_noise = PerlinNoise()
         self.cs_mid = 0.5
         self.cs_shadow = 0.15
+        self.outline_max = 0.1
+        self.outline_min = 0.04
 
         if scene_file_path:
             self.load_scene(scene_file_path)
@@ -421,6 +423,8 @@ class Renderer:
             self.ssao_bias = renderer_params.get("ssao_bias", self.ssao_bias)
             self.cs_mid = renderer_params.get("cs_mid", self.cs_mid)
             self.cs_shadow = renderer_params.get("cs_shadow", self.cs_shadow)
+            self.outline_max = renderer_params.get("outline_max", self.outline_max)
+            self.outline_min = renderer_params.get("outline_min", self.outline_min)
 
             if ssao_kernel_size:
                 self.ssao_kernel = SSAOKernel(ssao_kernel_size)
@@ -646,7 +650,7 @@ class Renderer:
                     if backface:
                         outline_size = -self.perlin_noise(seed)
                         seed += 0.001
-                        outline_size = 0.04 + (0.1 - 0.04) * (outline_size)
+                        outline_size = self.outline_min + (self.outline_max - self.outline_min) * (outline_size)
 
                         pos0 = [[v0.pos[0] + v0.normal[0] * outline_size], [v0.pos[1] + v0.normal[1] * outline_size],
                                 [v0.pos[2] + v0.normal[2] * outline_size], [1]]
