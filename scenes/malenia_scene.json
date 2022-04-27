@@ -1,0 +1,116 @@
+{
+  "renderer": {
+    "shadow_bias": 0.015,
+    "cs_mid": 0.6,
+    "cs_shadow": 0.6,
+    "outline_max": 0.05,
+    "outline_min": 0.01
+  },
+  "scene":{
+    "shapes":[
+      {
+        "id":"malenia",
+        "notes":"",
+        "geometry":"models/malenia/malenia",
+        "material":{
+          "texture": "models/malenia/diffuse.png",
+          "Cs":[
+            1,
+            0,
+            0
+          ],
+          "Ka":1.0,
+          "Kd":1.0,
+          "Ks":0.5,
+          "Kt":1.0,
+          "n":2.0
+        },
+        "transforms":[
+          {
+            "S":[
+              1.5,
+              1.5,
+              1.5
+            ]
+          },
+          {
+            "T":[
+              0,
+              0,
+              0
+            ]
+          }
+        ]
+      }
+    ],
+    "lights":[
+      {
+        "id":"L1",
+        "type":"ambient",
+        "color":[
+          1,
+          1,
+          1
+        ],
+        "intensity":0.2
+      },
+      {
+        "id":"L2",
+        "type":"directional",
+        "color":[
+          1,
+          0.9,
+          0.8
+        ],
+        "intensity":1,
+        "from":[
+          6,
+          7.5,
+          7.5
+        ],
+        "to":[
+          0,
+          0.5,
+          0
+        ],
+        "bounds":[
+          3,
+          10,
+          1,
+          -1,
+          1,
+          -1
+        ],
+        "resolution":[
+          512,
+          512
+        ]
+      }
+    ],
+    "camera":{
+      "from":[
+        -1.2,
+        2,
+        4.5
+      ],
+      "to":[
+        -0.8,
+        2.5,
+        0
+      ],
+      "bounds":[
+        3,
+        10,
+        1.25,
+        -1.25,
+        1.0,
+        -1.0
+      ],
+      "resolution":[
+        640,
+        512
+      ],
+      "background": "models/malenia/background.png"
+    }
+  }
+}

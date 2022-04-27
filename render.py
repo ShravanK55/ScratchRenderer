@@ -807,12 +807,15 @@ class Renderer:
                     albedo_image.putpixel((x, self.camera.resolution[1] - y - 1), albedo_color)
 
                     # Adding the specular color.
-                    specular_val = round(specularity / self.geometry_buffer.max_specularity * MAX_RGB)
+                    max_specularity = self.geometry_buffer.max_specularity if \
+                        self.geometry_buffer.max_specularity != 0 else 1.0
+                    specular_val = round(specularity / max_specularity * MAX_RGB)
                     specular_color = (specular_val, specular_val, specular_val)
                     specular_image.putpixel((x, self.camera.resolution[1] - y - 1), specular_color)
 
                     # Adding the depth color.
-                    depth_val = round(depth / self.geometry_buffer.max_depth * MAX_RGB)
+                    max_depth = self.geometry_buffer.max_depth if self.geometry_buffer.max_depth != 0 else 1.0
+                    depth_val = round(depth / max_depth * MAX_RGB)
                     depth_color = (depth_val, depth_val, depth_val)
                     depth_image.putpixel((x, self.camera.resolution[1] - y - 1), depth_color)
 

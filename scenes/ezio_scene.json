@@ -1,0 +1,116 @@
+{
+  "renderer": {
+    "shadow_bias": 0.015,
+    "cs_mid": 0.6,
+    "cs_shadow": 0.6,
+    "outline_max": 0.05,
+    "outline_min": 0.01
+  },
+  "scene":{
+    "shapes":[
+      {
+        "id":"ezio",
+        "notes":"",
+        "geometry":"models/ezio/ezio",
+        "material":{
+          "texture": "models/ezio/diffuse.png",
+          "Cs":[
+            1,
+            0,
+            0
+          ],
+          "Ka":1.0,
+          "Kd":1.0,
+          "Ks":1.0,
+          "Kt":1.0,
+          "n":0.0
+        },
+        "transforms":[
+          {
+            "S":[
+              1.5,
+              1.5,
+              1.5
+            ]
+          },
+          {
+            "T":[
+              0,
+              0,
+              0
+            ]
+          }
+        ]
+      }
+    ],
+    "lights":[
+      {
+        "id":"L1",
+        "type":"ambient",
+        "color":[
+          1,
+          1,
+          1
+        ],
+        "intensity":0.2
+      },
+      {
+        "id":"L2",
+        "type":"directional",
+        "color":[
+          1,
+          0.8,
+          0.7
+        ],
+        "intensity": 0.75,
+        "from":[
+          6,
+          7.5,
+          7.5
+        ],
+        "to":[
+          0,
+          0.5,
+          0
+        ],
+        "bounds":[
+          3,
+          10,
+          1,
+          -1,
+          1,
+          -1
+        ],
+        "resolution":[
+          512,
+          512
+        ]
+      }
+    ],
+    "camera":{
+      "from":[
+        1.75,
+        2.375,
+        2.75
+      ],
+      "to":[
+        -0.25,
+        2.125,
+        0
+      ],
+      "bounds":[
+        3,
+        10,
+        1.0,
+        -1.0,
+        1.0,
+        -1.0
+      ],
+      "resolution":[
+        512,
+        512
+      ],
+      "background": "models/ezio/background.png"
+    }
+  }
+}

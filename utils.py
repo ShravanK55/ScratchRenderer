@@ -90,8 +90,8 @@ def save_image_to_ppm(image, out_file_name):
     ppm_file.write(str(width) + " " + str(height) + "\n")
     ppm_file.write(str(MAX_RGB) + "\n")
     pixel_string = ""
-    for y in range(width):
-        for x in range(height):
+    for y in range(height):
+        for x in range(width):
             coord = x, y
             pixel = list(image.getpixel(coord))
             if x == 0:
