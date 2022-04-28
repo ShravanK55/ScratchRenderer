@@ -13,7 +13,7 @@ if __name__ == "__main__":
                                         "ambient occlusion and normal mapping turned on. The third image is cel "
                                         "shaded. The fourth image is halftone shaded. The fifth image has line art "
                                         "rendering. The last image uses wireframe rendering.")
-    parser.add_argument("-s", "--scene", help="Scene file path.", type=str, default="scenes/jinx_scene.json")
+    parser.add_argument("-s", "--scene", help="Scene file path.", type=str, default="scenes/teapot_scene.json")
     args = parser.parse_args()
 
     np.seterr(divide='ignore', invalid='ignore')

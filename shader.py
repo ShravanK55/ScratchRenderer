@@ -216,6 +216,10 @@ def shade_fragment(raster_pos, fragment_pos, camera, lights, n, fragment_color, 
             half_vec = np.array(l) + np.array(e)
             half_vec = half_vec / np.sqrt(np.dot(half_vec, half_vec))
             n_dot_h = np.dot(n, half_vec)
+            if (n_dot_h < 0.0):
+                n_dot_h = 0.0
+            elif (n_dot_h > 1.0):
+                n_dot_h = 1.0
 
             # Accumulating the diffuse and specular color.
             diffuse_color += light_color * light_scale
@@ -227,6 +231,16 @@ def shade_fragment(raster_pos, fragment_pos, camera, lights, n, fragment_color, 
             half_vec = np.array(l) + np.array(e)
             half_vec = half_vec / np.sqrt(np.dot(half_vec, half_vec))
             n_dot_h = np.dot(n, half_vec)
+
+            if (n_dot_l < 0.0):
+                n_dot_l = 0.0
+            elif (n_dot_l > 1.0):
+                n_dot_l = 1.0
+
+            if (n_dot_h < 0.0):
+                n_dot_h = 0.0
+            elif (n_dot_h > 1.0):
+                n_dot_h = 1.0
 
             # Accumulating the diffuse and specular color.
             diffuse_color += light_color * n_dot_l

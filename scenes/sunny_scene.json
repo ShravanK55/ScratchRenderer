@@ -1,9 +1,7 @@
 {
   "renderer": {
     "cs_mid": 0.6,
-    "cs_shadow": 0.6,
-    "outline_max": 0.05,
-    "outline_min": 0.01
+    "cs_shadow": 0.6
   },
   "scene":{
     "shapes":[

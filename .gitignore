@@ -160,3 +160,6 @@ cython_debug/
 # 3D Model Files
 *.obj
 *.mtl
+
+# VS Code Files
+.vscode/*
