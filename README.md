@@ -47,6 +47,7 @@ The section has images that were created using our renderer.
 ![Luffy](https://i.imgur.com/oBP0tDq.png)
 ![Thousand Sunny](https://i.imgur.com/rO3uKR6.png)
 ![Backpacks](https://i.imgur.com/H6lAUIk.png)
+![Teapot](https://i.imgur.com/TBQ3wQG.png)
 
 # Credits
 
