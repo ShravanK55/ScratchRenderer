@@ -42,6 +42,10 @@ The section has images that were created using our renderer.
 ![McLaren F1 Car](https://i.imgur.com/iY8Z0Nh.png)
 ![Viking Room](https://i.imgur.com/Sj1YXwL.png)
 ![Artorias](https://i.imgur.com/tSz0H1b.png)
+![Ezio](https://i.imgur.com/bPu8DnL.png)
+![Malenia](https://i.imgur.com/FCHBkrX.png)
+![Luffy](https://i.imgur.com/oBP0tDq.png)
+![Thousand Sunny](https://i.imgur.com/rO3uKR6.png)
 ![Backpacks](https://i.imgur.com/H6lAUIk.png)
 
 # Credits
