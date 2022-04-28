@@ -613,19 +613,20 @@ class Renderer:
                     tangent = (delta_pos_1 * delta_uv_2[1] - delta_pos_2 * delta_uv_1[1]) * r
                     tangent = tangent / np.sqrt(np.dot(tangent, tangent))
 
-                    # Use the Gram-Schmidt process to orthogonalize the tangent to the normals.
-                    nt0 = np.array([v0.normal[0], v0.normal[1], v0.normal[2]])
-                    nt1 = np.array([v1.normal[0], v1.normal[1], v1.normal[2]])
-                    nt2 = np.array([v2.normal[0], v2.normal[1], v2.normal[2]])
-                    t0 = tangent - nt0 * np.dot(tangent, nt0)
-                    t1 = tangent - nt1 * np.dot(tangent, nt1)
-                    t2 = tangent - nt2 * np.dot(tangent, nt2)
-                    t0 = t0 / np.sqrt(np.dot(t0, t0))
-                    t1 = t1 / np.sqrt(np.dot(t1, t1))
-                    t2 = t2 / np.sqrt(np.dot(t2, t2))
-                    t0 = [[t0[0]], [t0[1]], [t0[2]], [0]]
-                    t1 = [[t1[0]], [t1[1]], [t1[2]], [0]]
-                    t2 = [[t2[0]], [t2[1]], [t2[2]], [0]]
+                    if not (np.isnan(tangent[0]) or np.isnan(tangent[1]) or np.isnan(tangent[2])):
+                        # Use the Gram-Schmidt process to orthogonalize the tangent to the normals.
+                        nt0 = np.array([v0.normal[0], v0.normal[1], v0.normal[2]])
+                        nt1 = np.array([v1.normal[0], v1.normal[1], v1.normal[2]])
+                        nt2 = np.array([v2.normal[0], v2.normal[1], v2.normal[2]])
+                        t0 = tangent - nt0 * np.dot(tangent, nt0)
+                        t1 = tangent - nt1 * np.dot(tangent, nt1)
+                        t2 = tangent - nt2 * np.dot(tangent, nt2)
+                        t0 = t0 / np.sqrt(np.dot(t0, t0))
+                        t1 = t1 / np.sqrt(np.dot(t1, t1))
+                        t2 = t2 / np.sqrt(np.dot(t2, t2))
+                        t0 = [[t0[0]], [t0[1]], [t0[2]], [0]]
+                        t1 = [[t1[0]], [t1[1]], [t1[2]], [0]]
+                        t2 = [[t2[0]], [t2[1]], [t2[2]], [0]]
 
                 # Displacing backfaces for line art/outlines.
                 backface = False
@@ -670,7 +671,7 @@ class Renderer:
                 n1 = np.matmul(normal_transform_matrix, n1)
                 n2 = np.matmul(normal_transform_matrix, n2)
 
-                if obj.normal_map:
+                if obj.normal_map and t0 is not None and t1 is not None and t2 is not None:
                     t0 = np.matmul(normal_transform_matrix, t0)
                     t1 = np.matmul(normal_transform_matrix, t1)
                     t2 = np.matmul(normal_transform_matrix, t2)
@@ -688,7 +689,7 @@ class Renderer:
                 n0 = n0 / np.sqrt(np.dot(n0, n0))
                 n1 = n1 / np.sqrt(np.dot(n1, n1))
                 n2 = n2 / np.sqrt(np.dot(n2, n2))
-                if obj.normal_map:
+                if obj.normal_map and t0 is not None and t1 is not None and t2 is not None:
                     t0 = np.transpose(t0[:-1])[0]
                     t1 = np.transpose(t1[:-1])[0]
                     t2 = np.transpose(t2[:-1])[0]

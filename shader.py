@@ -463,7 +463,7 @@ def occlusion_pass_shader(g_buffer, camera, kernel, noise, radius=0.5, bias=0.02
                     sample_pos = np.transpose(sample_pos)[0]
                     sample_pos = position[:-1] + sample_pos * radius
 
-                    # Projection of position to screen space to get sampling location on position texture.
+                    # Projection of position in screen space to get sampling location on position texture.
                     offset = [[sample_pos[0]], [sample_pos[1]], [sample_pos[2]], [1]]
                     offset = np.matmul(projection_matrix, offset)
                     offset = np.transpose(offset)[0]
