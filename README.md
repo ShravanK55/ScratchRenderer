@@ -1,6 +1,6 @@
 # Scratch Renderer
 
-This is a renderer built from scratch in Python without any graphics library calls (other than to set a pixel on an image). The renderer implements advanced lighting features such as screen space ambient occlusion, shadow mapping, normal mapping and stylized rendering effects such as cel shading, halftone shading, line art and wireframe rendering. This is built as the final project for the CSCI 580 class (Spring 2022) at the University of Southern California.
+This is a renderer built from scratch in Python without any graphics library calls (other than to set a pixel on an image). The renderer implements advanced lighting features such as screen space ambient occlusion, shadow mapping, normal mapping and stylized rendering effects such as cel shading, halftone shading, line art and wireframe rendering. This is built as the final project for the CSCI 580 class (Spring 2022) at the University of Southern California. Check out the [demo video](https://youtu.be/NGytUSWseOk) for a presentation of the project.
 
 Shravan Kumar ([@ShravanK55](https://github.com/ShravanK55)) worked on ambient occlusion, Luiz Cilento ([@cilento1](https://github.com/cilento1)) worked on shadow mapping, Rashi Sinha ([@Rashi-Sinha](https://github.com/Rashi-Sinha)) worked on stylized rendering and Yaorong Xie ([@yaorongxie](https://github.com/yaorongxie)) worked on normal mapping.
 
